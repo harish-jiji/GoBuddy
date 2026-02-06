@@ -1,0 +1,8 @@
+ERROR: Line 4: Found endif but expected end of block (opened at line 4)
+ERROR: Line 4: Found endblock but no open block.
+ERROR: Line 5: Found endif but expected end of block (opened at line 5)
+ERROR: Line 5: Found endblock but no open block.
+ERROR: Line 790: Found endblock but expected end of if (opened at line 245)
+
+ERROR: Unclosed blocks at end of file:
+  block opened at line 7

@@ -1,0 +1,190 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<style>
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .glass {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        border-radius: 14px;
+    }
+
+    .gradient {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+    }
+</style>
+
+<div class="space-y-8">
+
+    <div class="glass p-6">
+        <a href="{% url 'customers:browse_packages' %}" class="text-blue-400 hover:text-blue-300 mb-4 inline-block">
+            <i class="fas fa-arrow-left mr-2"></i>Back to Packages
+        </a>
+        <h1 class="text-3xl font-bold">{{ package.name }}</h1>
+        <p class="text-gray-300">{{ package.short_description }}</p>
+    </div>
+
+    <!-- Package Hero Image -->
+    {% if package.image %}
+    <div class="glass overflow-hidden">
+        <img src="{{ package.image.url }}" alt="{{ package.name }}" class="w-full h-96 object-cover">
+    </div>
+    {% endif %}
+
+    <!-- Key Details Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="glass p-6 text-center">
+            <div class="text-sm text-gray-400 uppercase mb-2">Duration</div>
+            <div class="text-3xl font-bold text-blue-400">{{ package.duration_days }}</div>
+            <div class="text-sm text-gray-300">Days / {{ package.duration_nights }} Nights</div>
+        </div>
+
+        <div class="glass p-6 text-center">
+            <div class="text-sm text-gray-400 uppercase mb-2">Package Cost</div>
+            <div class="text-3xl font-bold text-green-400">₹{{ package.total_cost|floatformat:0 }}</div>
+            <div class="text-sm text-gray-300">Per Person</div>
+        </div>
+
+        <div class="glass p-6 text-center">
+            <div class="text-sm text-gray-400 uppercase mb-2">Category</div>
+            <div class="text-2xl font-bold text-purple-400 capitalize">{{ package.get_category_display }}</div>
+        </div>
+
+        <div class="glass p-6 text-center">
+            <div class="text-sm text-gray-400 uppercase mb-2">Destinations</div>
+            <div class="text-lg font-bold text-yellow-400">{{ package.destinations.count }}</div>
+            <div class="text-sm text-gray-300">Places</div>
+        </div>
+    </div>
+
+    <!-- Destinations -->
+    <div class="glass p-6">
+        <h3 class="text-xl font-bold mb-4">
+            <i class="fas fa-map-marked-alt text-blue-400 mr-2"></i>Destinations Covered
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for dest in package.destinations.all %}
+            <div class="bg-white/5 p-4 rounded-lg">
+                <h4 class="font-semibold text-white mb-1">{{ dest.name }}</h4>
+                <p class="text-sm text-gray-400">{{ dest.get_state_display }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Inclusions -->
+    <div class="glass p-6">
+        <h3 class="text-xl font-bold mb-4">
+            <i class="fas fa-check-circle text-green-400 mr-2"></i>Inclusions
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-white/5 p-4 rounded-lg">
+                <div class="text-blue-400 mb-2"><i class="fas fa-hotel text-2xl"></i></div>
+                <div class="font-semibold">Accommodation</div>
+                <div class="text-sm text-gray-300">{{ package.get_accommodation_type_display }}</div>
+            </div>
+            <div class="bg-white/5 p-4 rounded-lg">
+                <div class="text-blue-400 mb-2"><i class="fas fa-car text-2xl"></i></div>
+                <div class="font-semibold">Transportation</div>
+                <div class="text-sm text-gray-300">{{ package.get_transportation_mode_display }}</div>
+            </div>
+            <div class="bg-white/5 p-4 rounded-lg">
+                <div class="text-blue-400 mb-2"><i class="fas fa-utensils text-2xl"></i></div>
+                <div class="font-semibold">Meals</div>
+                <div class="text-sm text-gray-300">{{ package.get_meals_plan_display }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Day-by-Day Itinerary -->
+    {% if package.itinerary %}
+    <div class="glass p-6">
+        <h3 class="text-xl font-bold mb-4">
+            <i class="fas fa-route text-blue-400 mr-2"></i>Day-by-Day Itinerary
+        </h3>
+        <div class="space-y-4">
+            {% for day in package.itinerary %}
+            <div class="bg-white/5 p-5 rounded-lg border border-white/10">
+                <div class="font-bold text-lg mb-3 text-blue-400">
+                    <i class="fas fa-calendar-day mr-2"></i>Day {{ day.day }}
+                </div>
+                {% if day.places %}
+                <div class="space-y-2 ml-6">
+                    {% for place in day.places %}
+                    <div class="border-l-2 border-blue-500 pl-4 py-2">
+                        <div class="font-medium text-white">{{ forloop.counter }}. {{ place.name }}</div>
+                        {% if place.address %}
+                        <div class="text-xs text-gray-400 mt-1">{{ place.address }}</div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400 italic ml-6">Flexible itinerary - explore at your own pace</p>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Description -->
+    <div class="glass p-6">
+        <h3 class="text-xl font-bold mb-4">
+            <i class="fas fa-info-circle text-blue-400 mr-2"></i>Package Details
+        </h3>
+        <div class="text-gray-300 whitespace-pre-line">{{ package.description }}</div>
+    </div>
+
+    <!-- Booking Section -->
+    <div class="glass p-6">
+        <h3 class="text-xl font-bold mb-4">
+            <i class="fas fa-calendar-check text-green-400 mr-2"></i>Book This Package
+        </h3>
+
+        <form method="POST" action="{% url 'customers:book_package' package.id %}">
+            {% csrf_token %}
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div>
+                    <label class="block text-sm font-medium mb-2">Travel Start Date *</label>
+                    <input type="date" name="start_date" required min="{{ today|date:'Y-m-d' }}"
+                        class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium mb-2">Number of Travelers *</label>
+                    <input type="number" name="travelers" min="1" max="20" value="1" required
+                        class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div class="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-400 mr-3 mt-1"></i>
+                    <div class="text-sm text-gray-300">
+                        <strong>Note:</strong> The package cost shown is per person. Your total booking amount will be
+                        calculated based on the number of travelers. Final payment will be processed after confirmation.
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-4">
+                <a href="{% url 'customers:browse_packages' %}"
+                    class="flex-1 text-center px-6 py-3 glass hover:bg-white/10 rounded-lg transition">
+                    <i class="fas fa-arrow-left mr-2"></i>Back to Packages
+                </a>
+                <button type="submit"
+                    class="flex-1 gradient px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition">
+                    <i class="fas fa-ticket-alt mr-2"></i>Proceed to Booking
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}

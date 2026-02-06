@@ -1,0 +1,140 @@
+{% extends 'admin/base_admin.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Bookings{% endblock %}
+{% block header_title %}All Bookings{% endblock %}
+
+{% block content %}
+<!-- Filter section removed as per user request -->
+
+<div class="flex justify-end mb-4">
+  <a href="{% url 'adminpanel:export_bookings_csv' %}?{{ request.GET.urlencode }}"
+    class="flex items-center text-sm font-medium text-green-600 hover:text-green-800">
+    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+      </path>
+    </svg>
+    Export CSV
+  </a>
+</div>
+
+<div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+        <tr>
+          <th class="px-6 py-4">Ref ID</th>
+          <th class="px-6 py-4">User</th>
+          <th class="px-6 py-4">Package</th>
+          <th class="px-6 py-4">Travel Date</th>
+          <th class="px-6 py-4">Amount</th>
+          <th class="px-6 py-4">Status</th>
+          <th class="px-6 py-4">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 text-sm">
+        {% for b in bookings %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-6 py-4 font-medium text-gray-900">
+            <a href="{% url 'adminpanel:booking_detail' b.pk %}" class="hover:underline text-blue-600">
+              {{ b.booking_reference }}
+            </a>
+          </td>
+          <td class="px-6 py-4 text-gray-600">
+            <div class="font-medium text-gray-900">{{ b.user.full_name|default:b.user.email }}</div>
+            <div class="text-xs text-gray-400">{{ b.user.email }}</div>
+          </td>
+          <td class="px-6 py-4 text-gray-900">
+            {% if b.package %}
+            {{ b.package.name|truncatechars:25 }}
+            {% else %}
+            <span class="text-gray-400 italic">Custom / N/A</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4 text-gray-500">{{ b.start_date|date:"M d, Y" }}</td>
+          <td class="px-6 py-4 font-medium text-gray-900">₹{{ b.total_amount }}</td>
+          <td class="px-6 py-4">
+            {% if b.status == 'confirmed' %}
+            <span class="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">Confirmed</span>
+            {% elif b.status == 'pending' %}
+            <span class="px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-semibold">Pending</span>
+            {% elif b.status == 'cancelled' %}
+            <span class="px-2 py-1 bg-red-100 text-red-700 rounded-full text-xs font-semibold">Cancelled</span>
+            {% else %}
+            <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">{{ b.get_status_display
+              }}</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-4">
+            <a href="{% url 'adminpanel:booking_detail' b.pk %}"
+              class="text-blue-600 hover:text-blue-900 font-medium">Details</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="px-6 py-12 text-center">
+            <div class="flex flex-col items-center justify-center">
+              <div class="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <h3 class="text-lg font-medium text-gray-900 mb-1">No Bookings Found</h3>
+              <p class="text-gray-500 text-sm mb-4">
+                {% if request.GET.status or request.GET.user_search or request.GET.start_date or request.GET.end_date %}
+                We couldn't find any bookings matching your filters.
+                {% else %}
+                There are no bookings in the system yet.
+                {% endif %}
+              </p>
+              {% if request.GET.status or request.GET.user_search or request.GET.start_date or request.GET.end_date %}
+              <a href="{% url 'adminpanel:bookings' %}"
+                class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm font-medium">
+                Clear Filters
+              </a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+    <div class="flex-1 flex justify-between sm:hidden">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+      {% endif %}
+    </div>
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+      <div>
+        <p class="text-sm text-gray-700">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+      </div>
+      <div>
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+          {% if page_obj.has_previous %}
+          <a href="?page={{ page_obj.previous_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Prev</a>
+          {% endif %}
+
+          {% if page_obj.has_next %}
+          <a href="?page={{ page_obj.next_page_number }}{% for key,value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}"
+            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

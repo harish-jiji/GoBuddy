@@ -1,0 +1,58 @@
+{% extends 'customer/base.html' %}
+{% block content %}
+  <style>
+    /* Customer Dashboard Specific Styles */
+    * { font-family: 'Inter', sans-serif; }
+    .customer-gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+    .customer-glass-effect { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); }
+    .customer-card-hover { transition: all 0.3s ease; }
+    .customer-card-hover:hover { transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,.3); }
+    .customer-fade-in { animation: customerFadeIn .6s ease-in; }
+    @keyframes customerFadeIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  </style>
+
+  <!-- Layout uses base header/sidebar; show welcome and quick stats on this page -->
+  <div class="space-y-8 customer-fade-in">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="customer-glass-effect p-6 rounded-xl lg:col-span-2">
+        <h2 class="text-2xl font-bold mb-2">Welcome, {{ user.full_name }}</h2>
+        <p class="text-gray-300">Plan trips, manage bookings, and keep track of your travel activity.</p>
+          </div>
+      <div class="customer-glass-effect p-6 rounded-xl">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="text-center">
+            <p class="text-2xl font-bold text-blue-400">{{ trips_count|default:0 }}</p>
+            <p class="text-xs text-gray-300">Trips</p>
+          </div>
+          <div class="text-center">
+            <p class="text-2xl font-bold text-green-400">{{ countries_count|default:0 }}</p>
+            <p class="text-xs text-gray-300">Countries</p>
+          </div>
+          </div>
+        </div>
+      </div>
+
+    <div class="customer-glass-effect p-6 rounded-xl">
+      <h3 class="text-lg font-semibold mb-4">Recent Activity</h3>
+        <div class="space-y-2">
+        {% for booking in recent_bookings %}
+          <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+            <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <div class="flex-1">
+            <p class="text-sm">
+              {% if booking.trip %}
+                {{ booking.trip.title }}{% if booking.trip.destination %} - {{ booking.trip.destination }}{% endif %}
+              {% else %}
+                Booking #{{ booking.id }}
+              {% endif %}
+            </p>
+            <p class="text-xs text-gray-400">{{ booking.booked_at|date:"M d, Y H:i" }}</p>
+            </div>
+          </div>
+        {% empty %}
+        <p class="text-sm text-gray-400">No recent activity.</p>
+        {% endfor %}
+            </div>
+          </div>
+        </div>
+{% endblock %}

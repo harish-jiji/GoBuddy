@@ -1,0 +1,160 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Booking {{ booking.booking_reference }}{% endblock %}
+{% block header_title %}Booking Details{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+    <!-- Left Column: Booking Info & Travelers -->
+    <div class="lg:col-span-2 space-y-6">
+
+        <!-- Booking Overview -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900">{{ booking.booking_reference }}</h2>
+                    <p class="text-sm text-gray-500">Created on {{ booking.created_at|date:"F d, Y H:i" }}</p>
+                </div>
+                <div class="mt-4 md:mt-0 flex space-x-3">
+                    {% if booking.status == 'confirmed' %}
+                    <span
+                        class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Confirmed</span>
+                    {% elif booking.status == 'pending' %}
+                    <span
+                        class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">Pending</span>
+                    {% elif booking.status == 'cancelled' %}
+                    <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">Cancelled</span>
+                    {% else %}
+                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">{{
+                        booking.get_status_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Customer</h4>
+                    <div class="flex items-center space-x-3">
+                        <div
+                            class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold">
+                            {{ booking.user.email|make_list|first|upper }}
+                        </div>
+                        <div>
+                            <p class="text-gray-900 font-medium">{{ booking.user.full_name|default:"No Name" }}</p>
+                            <p class="text-sm text-gray-500">{{ booking.user.email }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">Package</h4>
+                    {% if booking.package %}
+                    <a href="{% url 'adminpanel:package_detail' booking.package.pk %}"
+                        class="block p-3 bg-gray-50 rounded-lg border border-gray-100 hover:border-blue-200 transition-colors">
+                        <p class="font-semibold text-blue-600">{{ booking.package.name }}</p>
+                        <p class="text-xs text-gray-500">{{ booking.package.duration_days }} Days</p>
+                    </a>
+                    {% else %}
+                    <p class="text-gray-500 italic">Custom booking (no package)</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <hr class="my-6 border-gray-100">
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Start Date</p>
+                    <p class="text-gray-900 font-medium">{{ booking.start_date|date:"M d, Y"|default:"TBD" }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">End Date</p>
+                    <p class="text-gray-900 font-medium">{{ booking.end_date|date:"M d, Y"|default:"TBD" }}</p>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-between items-center bg-gray-50 p-4 rounded-lg">
+                <span class="font-medium text-gray-700">Total Amount</span>
+                <span class="text-xl font-bold text-gray-900">₹{{ booking.total_amount }}</span>
+            </div>
+
+            <div class="mt-6">
+                <a href="#" class="inline-flex items-center text-sm font-medium text-blue-600 hover:underline">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z">
+                        </path>
+                    </svg>
+                    Download Invoice (Mock)
+                </a>
+            </div>
+        </div>
+
+        <!-- Travelers List -->
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-100">
+                <h3 class="text-lg font-bold text-gray-900">Travelers ({{ travelers.count }})</h3>
+            </div>
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+                    <tr>
+                        <th class="px-6 py-3">Name</th>
+                        <th class="px-6 py-3">Age</th>
+                        <th class="px-6 py-3">Passport</th>
+                        <th class="px-6 py-3">Phone</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-sm">
+                    {% for t in travelers %}
+                    <tr class="hover:bg-gray-50">
+                        <td class="px-6 py-3 font-medium text-gray-900">{{ t.full_name }}</td>
+                        <td class="px-6 py-3 text-gray-500">{{ t.age|default:"-" }}</td>
+                        <td class="px-6 py-3 text-gray-500">{{ t.passport_no|default:"-" }}</td>
+                        <td class="px-6 py-3 text-gray-500">{{ t.phone|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="px-6 py-4 text-center text-gray-500">No travelers added yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Right Column: Notes -->
+    <div class="space-y-6">
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-bold text-gray-900 mb-4">Admin Notes</h3>
+
+            <form method="post" class="mb-6">
+                {% csrf_token %}
+                <div class="space-y-3">
+                    {{ note_form.title }}
+                    {{ note_form.body }}
+                    <label class="flex items-center space-x-2 text-sm text-gray-600">
+                        {{ note_form.is_resolved }}
+                        <span>Mark as resolved</span>
+                    </label>
+                    <button type="submit"
+                        class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">Add
+                        Note</button>
+                </div>
+            </form>
+
+            <div class="space-y-4 max-h-96 overflow-y-auto">
+                {% for note in booking.admin_notes.all %}
+                <div class="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                    <div class="flex justify-between items-start mb-1">
+                        <span class="font-medium text-gray-900 text-sm">{{ note.title }}</span>
+                        <span class="text-xs text-gray-400">{{ note.created_at|date:"M d" }}</span>
+                    </div>
+                    <p class="text-sm text-gray-600">{{ note.body }}</p>
+                    <div class="mt-2 text-xs text-gray-500">By {{ note.author.full_name|default:"Admin" }}</div>
+                </div>
+                {% empty %}
+                <p class="text-sm text-gray-500 italic">No notes added.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

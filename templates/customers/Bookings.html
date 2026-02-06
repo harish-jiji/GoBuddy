@@ -1,0 +1,120 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<style>
+  :root { --glass: rgba(255,255,255,0.08); }
+  .glass { background: var(--glass); backdrop-filter: blur(10px); border-radius: 12px; padding: 1rem; }
+  .title { font-weight: 700; font-size: 1.3rem; }
+  .small { color: #cbd5e1; font-size: .9rem; }
+  .metric { font-size: 2rem; font-weight: 700; }
+</style>
+
+<!-- HEADER -->
+<div class="glass mb-6">
+  <h1 class="title">My Bookings</h1>
+  <p class="small">Track and manage all your travel bookings.</p>
+</div>
+
+<!-- QUICK STATS -->
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+  <div class="glass">
+    <p class="small">Total Bookings</p>
+    <p class="metric">{{ bookings|length }}</p>
+  </div>
+  <div class="glass">
+    <p class="small">Upcoming Trips</p>
+    <p class="metric">{{ upcoming_bookings|length }}</p>
+  </div>
+  <div class="glass">
+    <p class="small">Completed Trips</p>
+    <p class="metric">{{ completed_bookings|length }}</p>
+  </div>
+  <div class="glass">
+    <p class="small">Cancelled</p>
+    <p class="metric">{{ cancelled_bookings|length }}</p>
+  </div>
+</div>
+
+<!-- FILTER TABS -->
+<div class="glass p-3 rounded-xl mb-6">
+  <div class="flex flex-wrap gap-2">
+    <a href="?filter=all" class="px-4 py-2 rounded-lg {% if filter_type == 'all' %}bg-indigo-600{% else %}bg-white/10{% endif %}">
+      All ({{ bookings|length }})
+    </a>
+
+    <a href="?filter=upcoming" class="px-4 py-2 rounded-lg {% if filter_type == 'upcoming' %}bg-indigo-600{% else %}bg-white/10{% endif %}">
+      Upcoming ({{ upcoming_bookings|length }})
+    </a>
+
+    <a href="?filter=completed" class="px-4 py-2 rounded-lg {% if filter_type == 'completed' %}bg-indigo-600{% else %}bg-white/10{% endif %}">
+      Completed ({{ completed_bookings|length }})
+    </a>
+
+    <a href="?filter=cancelled" class="px-4 py-2 rounded-lg {% if filter_type == 'cancelled' %}bg-red-600{% else %}bg-white/10{% endif %}">
+      Cancelled ({{ cancelled_bookings|length }})
+    </a>
+  </div>
+</div>
+
+<!-- BOOKINGS LIST -->
+<div class="space-y-6">
+
+  {% for b in bookings %}
+  <div class="glass rounded-xl p-5">
+    <div class="flex flex-col md:flex-row justify-between">
+      
+      <!-- Left Section -->
+      <div>
+        <h2 class="font-bold text-xl mb-2">
+          {% if b.package %} {{ b.package.name }} {% else %}Booking #{{ b.id }}{% endif %}
+        </h2>
+
+        <p class="small">
+          <i class="fas fa-calendar"></i>
+          {{ b.start_date|date:"M d, Y" }} → {{ b.end_date|date:"M d, Y" }}
+        </p>
+
+        <p class="small">
+          <i class="fas fa-rupee-sign"></i>
+          Paid: ₹{{ b.total_amount|floatformat:0 }}
+        </p>
+
+        <p class="small mt-1">
+          <i class="fas fa-info-circle"></i>
+          Status: <strong>{{ b.get_status_display }}</strong>
+        </p>
+      </div>
+
+      <!-- Right Buttons -->
+      <div class="flex flex-col items-end gap-2 mt-4 md:mt-0">
+
+        <a href="#" class="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 text-sm">
+          <i class="fas fa-eye mr-2"></i> View
+        </a>
+
+        {% if b.status == 'upcoming' %}
+        <a href="#" class="px-4 py-2 bg-red-600 rounded-lg text-white text-sm hover:bg-red-700">
+          <i class="fas fa-times mr-1"></i> Cancel
+        </a>
+        {% endif %}
+
+      </div>
+
+    </div>
+  </div>
+  {% empty %}
+
+  <!-- Empty State -->
+  <div class="glass text-center p-10">
+    <div class="text-5xl mb-4">📭</div>
+    <h3 class="text-xl font-bold">No bookings found</h3>
+    <p class="small">You have not created any bookings yet.</p>
+    <a href="{% url 'customers:plan_trips' %}" class="mt-4 inline-block bg-indigo-600 px-6 py-3 rounded-lg">
+      Create Booking
+    </a>
+  </div>
+
+  {% endfor %}
+</div>
+
+{% endblock %}

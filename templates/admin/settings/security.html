@@ -1,0 +1,59 @@
+{% extends 'admin/base_admin.html' %}
+{% load widget_tweaks %}
+
+{% block title %}Security Settings{% endblock %}
+{% block header_title %}Security & Access Control{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+
+  {% if error %}
+  <div class="p-4 mb-6 bg-red-50 text-red-700 border border-red-200 rounded-lg">
+    {{ error }}
+  </div>
+  {% endif %}
+
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+    <div class="flex items-center space-x-4 mb-6">
+      <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z">
+          </path>
+        </svg>
+      </div>
+      <div>
+        <h3 class="text-xl font-bold text-gray-900">Global Admin 2FA</h3>
+        <p class="text-sm text-gray-500">Manage the shared access code for all admins.</p>
+      </div>
+    </div>
+
+    {% if form %}
+    <form method="post" class="space-y-6">
+      {% csrf_token %}
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700 mb-1">Current Access Code</label>
+        {{ form.two_factor_code }}
+        <p class="mt-2 text-xs text-gray-500">This code must be shared with all admin staff to allow them to log in.</p>
+        {% if form.two_factor_code.errors %}
+        <p class="text-sm text-red-600 mt-1">{{ form.two_factor_code.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <div class="pt-4 border-t border-gray-100 flex justify-end">
+        <button type="submit"
+          class="px-6 py-2 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500">
+          Update Code
+        </button>
+      </div>
+    </form>
+    {% else %}
+    <div class="text-center py-6">
+      <p class="text-gray-500">You do not have permission to view or edit this code.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

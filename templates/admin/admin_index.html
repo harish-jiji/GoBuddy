@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - GoBuddy</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* Admin Panel Specific Styles */
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .admin-gradient-bg {
+      background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+    }
+    
+    .admin-glass-effect {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(15px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .admin-card-hover {
+      transition: all 0.3s ease;
+    }
+    
+    .admin-card-hover:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+    }
+    
+    .admin-fade-in {
+      animation: adminFadeIn 0.6s ease-in;
+    }
+    
+    @keyframes adminFadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .admin-sidebar-active {
+      background: linear-gradient(135deg, #1e3a8a 0%, #7c3aed 100%);
+      color: white;
+    }
+    
+    .admin-ripple {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .admin-ripple::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .admin-ripple:active::before {
+      width: 300px;
+      height: 300px;
+    }
+    
+    /* Admin specific animations */
+    .admin-slide-in {
+      animation: adminSlideIn 0.5s ease-out;
+    }
+    
+    @keyframes adminSlideIn {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .admin-bounce-in {
+      animation: adminBounceIn 0.8s ease-out;
+    }
+    
+    @keyframes adminBounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .admin-loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: adminSpin 1s ease-in-out infinite;
+    }
+    
+    @keyframes adminSpin {
+      to { transform: rotate(360deg); }
+    }
+    
+    /* Mobile responsiveness for admin panel */
+    @media (max-width: 1024px) {
+      .admin-sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+      .admin-sidebar.open {
+        transform: translateX(0);
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .admin-hero-title {
+        font-size: 2rem;
+      }
+      .admin-hero-subtitle {
+        font-size: 1rem;
+      }
+      .admin-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    
+    @media (max-width: 640px) {
+      .admin-hero-title {
+        font-size: 1.5rem;
+      }
+      .admin-stats-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    /* Smooth scroll behavior */
+    html {
+      scroll-behavior: smooth;
+    }
+    
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 255, 255, 0.5);
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white min-h-screen">
+
+  <!-- Enhanced Admin Navbar -->
+  <header class="admin-glass-effect border-b border-white/20 sticky top-0 z-50">
+    <div class="flex justify-between items-center px-6 py-4">
+      <div class="flex items-center space-x-8">
+        <div class="flex items-center space-x-3">
+          <div class="w-12 h-12 admin-gradient-bg rounded-xl flex items-center justify-center">
+            <i class="fas fa-shield-alt text-white text-xl"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">GoBuddy</h1>
+            <p class="text-xs text-gray-400">Admin Panel</p>
+          </div>
+        </div>
+        <nav class="hidden lg:flex space-x-6 text-sm">
+          <button onclick="loadPage('dashboard/AD_dashboard.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-tachometer-alt"></i>
+            <span>Dashboard</span>
+          </button>
+          <button onclick="loadPage('destinations/destinations.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-globe"></i>
+            <span>Destinations</span>
+          </button>
+          <button onclick="loadPage('packages/packages.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-box"></i>
+            <span>Packages</span>
+          </button>
+          <button onclick="loadPage('bookings/bookings.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-calendar-check"></i>
+            <span>Bookings</span>
+          </button>
+          <button onclick="loadPage('users/users.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-users"></i>
+            <span>Users</span>
+          </button>
+          <button onclick="loadPage('expenses/expenses.html')" class="admin-nav-item px-4 py-2 rounded-lg hover:bg-white/10 transition-all duration-300 flex items-center space-x-2">
+            <i class="fas fa-dollar-sign"></i>
+            <span>Expenses</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="flex items-center space-x-4">
+        <div class="relative hidden md:block">
+          <input type="text" placeholder="Search admin panel..." 
+                 class="w-64 px-4 py-2 pl-10 rounded-xl admin-glass-effect text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-300"
+                 id="adminSearchInput">
+          <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+        </div>
+        <button class="relative admin-glass-effect p-3 rounded-xl hover:bg-white/10 transition-all duration-300 group">
+          <i class="fas fa-bell text-lg"></i>
+          <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full"></span>
+        </button>
+        <div class="relative group">
+          <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="admin profile" 
+               class="w-10 h-10 rounded-full border-2 border-white/20 hover:border-blue-400 transition-all duration-300 cursor-pointer">
+          <div class="absolute right-0 mt-2 w-48 admin-glass-effect rounded-xl shadow-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300">
+            <div class="py-2">
+              <a href="#" class="block px-4 py-2 hover:bg-white/10 flex items-center space-x-2">
+                <i class="fas fa-user-shield"></i>
+                <span>Admin Profile</span>
+              </a>
+              <a href="#" class="block px-4 py-2 hover:bg-white/10 flex items-center space-x-2">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+              </a>
+              <a href="#" class="block px-4 py-2 hover:bg-white/10 flex items-center space-x-2">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+              </a>
+            </div>
+          </div>
+        </div>
+        <button class="lg:hidden admin-glass-effect p-2 rounded-lg" onclick="toggleMobileMenu()">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+    </div>
+    
+    <!-- Mobile Menu -->
+    <div id="mobileMenu" class="hidden lg:hidden px-6 pb-4">
+      <div class="space-y-2">
+        <button onclick="loadPage('dashboard/AD_dashboard.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-tachometer-alt"></i>
+          <span>Dashboard</span>
+        </button>
+        <button onclick="loadPage('destinations/destinations.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-globe"></i>
+          <span>Destinations</span>
+        </button>
+        <button onclick="loadPage('packages/packages.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-box"></i>
+          <span>Packages</span>
+        </button>
+        <button onclick="loadPage('bookings/bookings.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-calendar-check"></i>
+          <span>Bookings</span>
+        </button>
+        <button onclick="loadPage('users/users.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-users"></i>
+          <span>Users</span>
+        </button>
+        <button onclick="loadPage('expenses/expenses.html')" class="w-full text-left px-4 py-2 rounded-lg hover:bg-white/10 flex items-center space-x-2">
+          <i class="fas fa-dollar-sign"></i>
+          <span>Expenses</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="flex">
+    <!-- Enhanced Admin Sidebar -->
+    <aside class="w-72 admin-glass-effect border-r border-white/10 min-h-screen p-6 space-y-8 hidden lg:block admin-sidebar">
+      <!-- Admin Profile Section -->
+      <div class="flex items-center space-x-4 p-4 rounded-xl bg-white/5">
+        <div class="relative">
+          <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="admin avatar" 
+               class="w-12 h-12 rounded-full border-2 border-white/20">
+          <div class="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+        </div>
+        <div>
+          <p class="font-semibold text-lg">Admin User</p>
+          <p class="text-sm text-gray-300">Super Administrator</p>
+        </div>
+      </div>
+
+      <!-- Quick Admin Stats -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">System Status</h3>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="admin-glass-effect p-3 rounded-lg text-center">
+            <p class="text-2xl font-bold text-green-400">99.9%</p>
+            <p class="text-xs text-gray-300">Uptime</p>
+          </div>
+          <div class="admin-glass-effect p-3 rounded-lg text-center">
+            <p class="text-2xl font-bold text-blue-400">1.2K</p>
+            <p class="text-xs text-gray-300">Active Users</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin Navigation Menu -->
+      <nav class="space-y-2">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">Administration</h3>
+        <button onclick="loadPage('dashboard/AD_dashboard.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-tachometer-alt text-lg group-hover:text-blue-400"></i>
+          <span>Dashboard</span>
+          <i class="fas fa-chevron-right ml-auto text-xs opacity-0 group-hover:opacity-100 transition-opacity"></i>
+        </button>
+        <button onclick="loadPage('destinations/destinations.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-globe text-lg group-hover:text-blue-400"></i>
+          <span>Destinations</span>
+        </button>
+        <button onclick="loadPage('packages/packages.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-box text-lg group-hover:text-blue-400"></i>
+          <span>Packages</span>
+        </button>
+        <button onclick="loadPage('bookings/bookings.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-calendar-check text-lg group-hover:text-blue-400"></i>
+          <span>Bookings</span>
+          <span class="ml-auto bg-red-500 text-xs px-2 py-1 rounded-full">12</span>
+        </button>
+        <button onclick="loadPage('users/users.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-users text-lg group-hover:text-blue-400"></i>
+          <span>Users</span>
+        </button>
+        <button onclick="loadPage('expenses/expenses.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-dollar-sign text-lg group-hover:text-blue-400"></i>
+          <span>Expenses</span>
+        </button>
+        <button onclick="loadPage('analytics/analytics.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-chart-line text-lg group-hover:text-blue-400"></i>
+          <span>Analytics</span>
+        </button>
+        <button onclick="loadPage('settings/settings.html')" class="admin-sidebar-nav w-full text-left px-4 py-3 rounded-xl hover:bg-white/10 transition-all duration-300 flex items-center space-x-3 group">
+          <i class="fas fa-cog text-lg group-hover:text-blue-400"></i>
+          <span>Settings</span>
+        </button>
+      </nav>
+
+      <!-- System Alerts -->
+      <div class="space-y-3">
+        <h3 class="text-sm font-semibold text-gray-300 uppercase tracking-wider">System Alerts</h3>
+        <div class="space-y-2">
+          <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+            <div class="w-2 h-2 bg-green-400 rounded-full"></div>
+            <div class="flex-1">
+              <p class="text-sm">System running smoothly</p>
+              <p class="text-xs text-gray-400">2 minutes ago</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+            <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+            <div class="flex-1">
+              <p class="text-sm">High server load detected</p>
+              <p class="text-xs text-gray-400">15 minutes ago</p>
+            </div>
+          </div>
+          <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 transition-colors">
+            <div class="w-2 h-2 bg-blue-400 rounded-full"></div>
+            <div class="flex-1">
+              <p class="text-sm">New user registration</p>
+              <p class="text-xs text-gray-400">1 hour ago</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Content Area -->
+    <main id="content-area" class="flex-1 p-6 lg:p-8">
+      <!-- Loading Spinner -->
+      <div id="loadingSpinner" class="hidden flex items-center justify-center h-64">
+        <div class="admin-loading"></div>
+      </div>
+      
+      <!-- Default: Admin Dashboard will load here -->
+      <div id="main-content" class="admin-fade-in"></div>
+    </main>
+  </div>
+
+  <!-- Floating Action Button -->
+  <div class="fixed bottom-6 right-6 z-40">
+    <button onclick="loadPage('dashboard/AD_dashboard.html')" 
+            class="w-14 h-14 admin-gradient-bg rounded-full shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center group">
+      <i class="fas fa-tachometer-alt text-white text-xl group-hover:rotate-12 transition-transform"></i>
+    </button>
+  </div>
+
+  <script>
+    // Enhanced page loading with animations
+    function loadPage(page) {
+      const contentArea = document.getElementById('content-area');
+      const loadingSpinner = document.getElementById('loadingSpinner');
+      const mainContent = document.getElementById('main-content');
+      
+      // Show loading spinner
+      loadingSpinner.classList.remove('hidden');
+      mainContent.classList.add('hidden');
+      
+      // Update active navigation
+      updateActiveNav(page);
+      
+      fetch(page)
+        .then(res => res.text())
+        .then(data => {
+          // Hide loading spinner
+          loadingSpinner.classList.add('hidden');
+          
+          // Update content with animation
+          mainContent.innerHTML = data;
+          mainContent.classList.remove('hidden');
+          mainContent.classList.add('admin-fade-in');
+          
+          // Scroll to top
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        })
+        .catch(() => {
+          loadingSpinner.classList.add('hidden');
+          mainContent.innerHTML = `
+            <div class="flex flex-col items-center justify-center h-64 text-center">
+              <i class="fas fa-exclamation-triangle text-6xl text-red-400 mb-4"></i>
+              <h3 class="text-xl font-semibold mb-2">Error Loading Page</h3>
+              <p class="text-gray-400 mb-4">Sorry, we couldn't load the requested admin page.</p>
+              <button onclick="loadPage('dashboard/AD_dashboard.html')" 
+                      class="px-6 py-2 admin-gradient-bg rounded-lg hover:opacity-90 transition-opacity">
+                Go to Dashboard
+              </button>
+            </div>
+          `;
+          mainContent.classList.remove('hidden');
+        });
+    }
+
+    // Update active navigation state
+    function updateActiveNav(page) {
+      // Remove active class from all nav items
+      document.querySelectorAll('.admin-nav-item, .admin-sidebar-nav').forEach(item => {
+        item.classList.remove('admin-sidebar-active');
+      });
+      
+      // Add active class to current page
+      const currentPage = page.replace('.html', '');
+      const navItems = document.querySelectorAll('.admin-nav-item, .admin-sidebar-nav');
+      navItems.forEach(item => {
+        if (item.onclick && item.onclick.toString().includes(currentPage)) {
+          item.classList.add('admin-sidebar-active');
+        }
+      });
+    }
+
+    // Mobile menu toggle
+    function toggleMobileMenu() {
+      const mobileMenu = document.getElementById('mobileMenu');
+      mobileMenu.classList.toggle('hidden');
+    }
+
+    // Enhanced search functionality
+    document.getElementById('adminSearchInput').addEventListener('input', function(e) {
+      const query = e.target.value.toLowerCase();
+      if (query.length > 2) {
+        showAdminSearchSuggestions(query);
+      } else {
+        hideAdminSearchSuggestions();
+      }
+    });
+
+    // Admin search suggestions
+    function showAdminSearchSuggestions(query) {
+      const suggestions = [
+        'User Management',
+        'Booking Analytics',
+        'Revenue Reports',
+        'Package Management',
+        'Indian Destinations',
+        'Kerala Packages',
+        'Goa Tours',
+        'Rajasthan Heritage',
+        'System Logs',
+        'Admin Settings',
+        'Security Dashboard'
+      ];
+      
+      const filtered = suggestions.filter(item => 
+        item.toLowerCase().includes(query)
+      );
+      
+      if (filtered.length > 0) {
+        showNotification(`Found ${filtered.length} admin features matching "${query}"`, 'info');
+      }
+    }
+
+    function hideAdminSearchSuggestions() {
+      // Hide search suggestions if needed
+    }
+
+    // Notification system
+    function showNotification(message, type = 'info') {
+      const notification = document.createElement('div');
+      notification.className = `fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+      
+      const colors = {
+        info: 'bg-blue-500',
+        success: 'bg-green-500',
+        warning: 'bg-yellow-500',
+        error: 'bg-red-500'
+      };
+      
+      notification.className += ` ${colors[type]} text-white`;
+      notification.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <i class="fas fa-${type === 'info' ? 'info-circle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'times-circle'}"></i>
+          <span>${message}</span>
+          <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      `;
+      
+      document.body.appendChild(notification);
+      
+      // Animate in
+      setTimeout(() => {
+        notification.classList.remove('translate-x-full');
+      }, 100);
+      
+      // Auto remove after 3 seconds
+      setTimeout(() => {
+        notification.classList.add('translate-x-full');
+        setTimeout(() => notification.remove(), 300);
+      }, 3000);
+    }
+
+    // Keyboard shortcuts for admin
+    document.addEventListener('keydown', function(e) {
+      if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+          case '1':
+            e.preventDefault();
+            loadPage('dashboard/AD_dashboard.html');
+            break;
+          case '2':
+            e.preventDefault();
+            loadPage('destinations/destinations.html');
+            break;
+          case '3':
+            e.preventDefault();
+            loadPage('packages/packages.html');
+            break;
+          case '4':
+            e.preventDefault();
+            loadPage('bookings/bookings.html');
+            break;
+          case '5':
+            e.preventDefault();
+            loadPage('users/users.html');
+            break;
+        }
+      }
+    });
+
+    // Load default page (Admin Dashboard) with animation
+    window.onload = () => {
+      // Show welcome notification
+      setTimeout(() => {
+        showNotification('Welcome to GoBuddy Admin Panel! You have full system access.', 'success');
+      }, 1000);
+      
+      setTimeout(() => {
+        loadPage("dashboard/AD_dashboard.html");
+      }, 500); // Small delay for better UX
+    };
+
+    // Add loading states to buttons
+    function addLoadingState(button, text = 'Loading...') {
+      const originalText = button.innerHTML;
+      button.innerHTML = `
+        <div class="flex items-center space-x-2">
+          <div class="admin-loading"></div>
+          <span>${text}</span>
+        </div>
+      `;
+      button.disabled = true;
+      
+      return () => {
+        button.innerHTML = originalText;
+        button.disabled = false;
+      };
+    }
+
+    // Enhanced page loading with loading states
+    function loadPageWithLoading(page, button = null) {
+      let resetButton = null;
+      if (button) {
+        resetButton = addLoadingState(button);
+      }
+      
+      loadPage(page).finally(() => {
+        if (resetButton) {
+          resetButton();
+        }
+      });
+    }
+
+    // Add click handlers for better UX
+    document.addEventListener('click', function(e) {
+      // Add ripple effect to buttons
+      if (e.target.matches('button, .clickable')) {
+        const ripple = document.createElement('span');
+        const rect = e.target.getBoundingClientRect();
+        const size = Math.max(rect.width, rect.height);
+        const x = e.clientX - rect.left - size / 2;
+        const y = e.clientY - rect.top - size / 2;
+        
+        ripple.style.cssText = `
+          position: absolute;
+          width: ${size}px;
+          height: ${size}px;
+          left: ${x}px;
+          top: ${y}px;
+          background: rgba(255, 255, 255, 0.3);
+          border-radius: 50%;
+          transform: scale(0);
+          animation: ripple 0.6s linear;
+          pointer-events: none;
+        `;
+        
+        e.target.style.position = 'relative';
+        e.target.style.overflow = 'hidden';
+        e.target.appendChild(ripple);
+        
+        setTimeout(() => ripple.remove(), 600);
+      }
+    });
+
+    // Add ripple animation CSS
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes ripple {
+        to {
+          transform: scale(4);
+          opacity: 0;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Add smooth scrolling to all internal links
+    document.addEventListener('click', function(e) {
+      if (e.target.tagName === 'A' && e.target.getAttribute('href').startsWith('#')) {
+        e.preventDefault();
+        const target = document.querySelector(e.target.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+    });
+  </script>
+
+</body>
+</html>

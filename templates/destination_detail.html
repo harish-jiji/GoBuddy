@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ destination.name }} - GoBuddy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-hover:hover {
+            transform: translateY(-2px);
+            transition: all 0.2s;
+        }
+    </style>
+</head>
+
+<body
+    class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white font-sans min-h-screen flex flex-col">
+
+    <!-- Navbar -->
+    <header class="fixed top-0 left-0 w-full z-50 glass-effect border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center py-4">
+                <a href="{% url 'core:home' %}" class="flex items-center space-x-3">
+                    <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
+                        <i class="fas fa-plane text-white text-lg"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold">GoBuddy</h1>
+                    </div>
+                </a>
+                <!-- 
+        Removed direct links to list pages as requested.
+        Can add them back later or link to sections on homepage if needed.
+      -->
+                <nav class="hidden lg:flex items-center space-x-8">
+                    <a href="{% url 'core:home' %}" class="px-4 py-2 glass-effect rounded-xl hover:bg-white/10 font-bold">Home</a>
+                </nav>
+                <div class="hidden lg:flex items-center space-x-4">
+                    <a href="{% url 'core:signin' %}" class="px-4 py-2 glass-effect rounded-xl hover:bg-white/10">Sign
+                        In</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow pt-0 pb-20">
+
+        <!-- Hero Section with Image -->
+        <div class="relative w-full h-[60vh]">
+            {% if destination.image %}
+            <img src="{{ destination.image.url }}" class="absolute inset-0 w-full h-full object-cover">
+            {% else %}
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600"></div>
+            {% endif %}
+            <div class="absolute inset-0 bg-black/50"></div>
+
+            <div class="absolute bottom-0 left-0 w-full p-8 bg-gradient-to-t from-slate-900 to-transparent">
+                <div class="max-w-7xl mx-auto">
+                    <h1 class="text-5xl md:text-6xl font-bold mb-2">{{ destination.name }}</h1>
+                    <p class="text-2xl text-gray-300 flex items-center gap-2">
+                        <i class="fas fa-map-marker-alt text-red-400"></i> {{ destination.country }}
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-10 relative z-10">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+                <!-- Details -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="glass-effect rounded-2xl p-8">
+                        <h2 class="text-2xl font-bold mb-4">About the Place</h2>
+                        <div class="prose prose-invert max-w-none text-gray-300 leading-relaxed">
+                            {{ destination.description|linebreaks }}
+                        </div>
+                    </div>
+
+                    <!-- Packages for this destination -->
+                    <div class="glass-effect rounded-2xl p-8">
+                        <h2 class="text-2xl font-bold mb-6">Available Packages</h2>
+                        {% if destination.packages.exists %}
+                        <div class="space-y-4">
+                            {% for p in destination.packages.all %}
+                            {% if p.is_active %}
+                            <div
+                                class="bg-white/5 rounded-xl p-4 flex justify-between items-center hover:bg-white/10 transition-colors">
+                                <div>
+                                    <h3 class="font-bold text-lg text-blue-300">{{ p.name }}</h3>
+                                    <p class="text-sm text-gray-400">{{ p.duration_days }} Days • ₹{{ p.total_cost }}
+                                    </p>
+                                </div>
+                                <a href="{% url 'core:package_detail' p.pk %}"
+                                    class="px-4 py-2 bg-blue-600 rounded-lg text-sm hover:bg-blue-500">View</a>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-gray-400 italic">No packages currently listed for this destination.</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Sidebar Info -->
+                <div class="lg:col-span-1 space-y-6">
+                    <div class="glass-effect rounded-2xl p-6">
+                        <h3 class="text-xl font-bold mb-4 border-b border-white/10 pb-2">Quick Facts</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">Starting Price</span>
+                                <span class="font-bold text-green-400">₹{{ destination.price_per_day }}/day</span>
+                            </div>
+                            {% if destination.best_season %}
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">Best Season</span>
+                                <span class="font-medium">{{ destination.best_season }}</span>
+                            </div>
+                            {% endif %}
+                            {% if destination.state %}
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400">State</span>
+                                <span class="font-medium">{{ destination.get_state_display }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="glass-effect rounded-2xl p-6 text-center">
+                        <h3 class="text-xl font-bold mb-4">Interested?</h3>
+                        <p class="text-gray-400 text-sm mb-6">Contact our travel experts to plan your customized trip to
+                            {{ destination.name }}.</p>
+                        <a href="#contact" class="block w-full py-3 gradient-bg rounded-xl font-bold btn-hover">Enquire
+                            Now</a>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="py-8 px-4 glass-effect border-t border-white/10 text-center mt-12">
+        <p class="text-gray-400">© 2025 GoBuddy. All rights reserved.</p>
+    </footer>
+
+</body>
+
+</html>

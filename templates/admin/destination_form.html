@@ -1,0 +1,380 @@
+{% extends 'admin/base_admin.html' %}
+{% load widget_tweaks %}
+
+{% block title %}{% if object %}Edit Destination{% else %}Add Destination{% endif %}{% endblock %}
+{% block header_title %}{% if object %}Edit Destination: {{ object.name }}{% else %}New Destination{% endif %}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+    <form method="post" enctype="multipart/form-data" class="space-y-6" novalidate id="destinationForm">
+        {% csrf_token %}
+
+        <!-- Non-field errors -->
+        {% if form.non_field_errors %}
+        <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+            {% for error in form.non_field_errors %}
+            <p class="text-sm text-red-600">{{ error }}</p>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Name Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.name.id_for_label }}">
+                Destination Name <span class="text-red-500">*</span>
+            </label>
+            {% render_field form.name class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="Enter destination name" id="id_name" %}
+            {% if form.name.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.name.help_text }}</p>
+            {% endif %}
+            {% if form.name.errors %}
+            <div class="mt-1">
+                {% for error in form.name.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- URL Name (Slug) Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.url_name.id_for_label }}">
+                URL Name (Slug)
+            </label>
+            {% render_field form.url_name class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="destination-url-name (auto-generated if left empty)" id="id_url_name" %}
+            {% if form.url_name.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.url_name.help_text }}</p>
+            {% endif %}
+            {% if form.url_name.errors %}
+            <div class="mt-1">
+                {% for error in form.url_name.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Country Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.country.id_for_label }}">
+                Country
+            </label>
+            {% render_field form.country class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="Country name (default: India)" id="id_country" %}
+            {% if form.country.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.country.help_text }}</p>
+            {% endif %}
+            {% if form.country.errors %}
+            <div class="mt-1">
+                {% for error in form.country.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- State Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.state.id_for_label }}">
+                State (India)
+            </label>
+            {% render_field form.state class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" id="id_state" %}
+            {% if form.state.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.state.help_text }}</p>
+            {% endif %}
+            {% if form.state.errors %}
+            <div class="mt-1">
+                {% for error in form.state.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Description Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.description.id_for_label }}">
+                Description
+            </label>
+            {% render_field form.description class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" rows="5" placeholder="Describe the destination, attractions, activities, etc." id="id_description" %}
+            {% if form.description.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.description.help_text }}</p>
+            {% endif %}
+            {% if form.description.errors %}
+            <div class="mt-1">
+                {% for error in form.description.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Image Field with Preview -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.image.id_for_label }}">
+                Destination Image
+            </label>
+
+            <!-- Current Image Preview (if editing) -->
+            {% if object and object.image %}
+            <div class="mb-3 p-3 bg-gray-50 rounded-lg border border-gray-200 current-image-preview">
+                <p class="text-xs text-gray-600 mb-2">Current Image:</p>
+                <img src="{{ object.image.url }}" alt="{{ object.name }}"
+                    class="max-w-xs h-auto rounded-lg shadow-sm border border-gray-200">
+            </div>
+            {% endif %}
+
+            <!-- File Input -->
+            <div class="relative">
+                {% render_field form.image class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" id="id_image" accept="image/*" %}
+            </div>
+
+            <!-- New Image Preview Container (populated by JS) -->
+            <div id="newImagePreview" class="hidden mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <p class="text-xs text-gray-600 mb-2">New Image Preview:</p>
+                <img id="previewImage" src="" alt="Preview" class="max-w-xs h-auto rounded-lg shadow-sm border border-gray-200">
+            </div>
+
+            {% if form.image.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.image.help_text }}</p>
+            {% endif %}
+            {% if form.image.errors %}
+            <div class="mt-1">
+                {% for error in form.image.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Price Per Day Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.price_per_day.id_for_label }}">
+                Price Per Day
+            </label>
+            <div class="relative">
+                <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                {% render_field form.price_per_day class="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="0.00" type="number" step="0.01" min="0" id="id_price_per_day" %}
+            </div>
+            {% if form.price_per_day.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.price_per_day.help_text }}</p>
+            {% endif %}
+            {% if form.price_per_day.errors %}
+            <div class="mt-1">
+                {% for error in form.price_per_day.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Best Season Field -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1" for="{{ form.best_season.id_for_label }}">
+                Best Season to Visit
+            </label>
+            {% render_field form.best_season class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors" placeholder="e.g., October to March, Summer, Monsoon, etc." id="id_best_season" %}
+            {% if form.best_season.help_text %}
+            <p class="mt-1 text-xs text-gray-500">{{ form.best_season.help_text }}</p>
+            {% endif %}
+            {% if form.best_season.errors %}
+            <div class="mt-1">
+                {% for error in form.best_season.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Is Active Checkbox -->
+        <div class="flex items-start">
+            <div class="flex items-center h-5">
+                {% render_field form.is_active class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" id="id_is_active" %}
+            </div>
+            <div class="ml-3 text-sm">
+                <label for="{{ form.is_active.id_for_label }}" class="font-medium text-gray-700 cursor-pointer">
+                    Active Status
+                </label>
+                {% if form.is_active.help_text %}
+                <p class="text-gray-500">{{ form.is_active.help_text }}</p>
+                {% endif %}
+                <p class="text-xs text-gray-400 mt-1">Uncheck to hide this destination from public listings</p>
+            </div>
+            {% if form.is_active.errors %}
+            <div class="mt-1 ml-3">
+                {% for error in form.is_active.errors %}
+                <p class="text-sm text-red-600">{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Form Actions -->
+        <div class="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+            <a href="{% url 'adminpanel:destinations' %}"
+                class="px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                Cancel
+            </a>
+            <button type="submit" id="submitBtn"
+                class="px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                {% if object %}
+                <svg class="w-5 h-5 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                </svg>
+                Save Changes
+                {% else %}
+                <svg class="w-5 h-5 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                </svg>
+                Create Destination
+                {% endif %}
+            </button>
+        </div>
+    </form>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const imageInput = document.getElementById('id_image');
+        const nameInput = document.getElementById('id_name');
+        const urlNameInput = document.getElementById('id_url_name');
+        const form = document.getElementById('destinationForm');
+        const submitBtn = document.getElementById('submitBtn');
+
+        // Image Preview Functionality
+        if (imageInput) {
+            imageInput.addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                const previewContainer = document.getElementById('newImagePreview');
+                const previewImage = document.getElementById('previewImage');
+
+                if (file) {
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                        alert('Please select an image file.');
+                        imageInput.value = '';
+                        previewContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    // Validate file size (max 5MB)
+                    if (file.size > 5 * 1024 * 1024) {
+                        alert('Image size should be less than 5MB.');
+                        imageInput.value = '';
+                        previewContainer.classList.add('hidden');
+                        return;
+                    }
+
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        previewImage.src = e.target.result;
+                        previewContainer.classList.remove('hidden');
+                        
+                        // Hide current image preview if editing
+                        const currentPreview = document.querySelector('.current-image-preview');
+                        if (currentPreview) {
+                            currentPreview.style.opacity = '0.5';
+                        }
+                    };
+                    reader.onerror = function () {
+                        alert('Error reading image file.');
+                        previewContainer.classList.add('hidden');
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    previewContainer.classList.add('hidden');
+                    const currentPreview = document.querySelector('.current-image-preview');
+                    if (currentPreview) {
+                        currentPreview.style.opacity = '1';
+                    }
+                }
+            });
+        }
+
+        // Auto-generate URL name (slug) from name field
+        if (nameInput && urlNameInput) {
+            let isUserTypingSlug = false;
+            let lastNameValue = nameInput.value || '';
+
+            // Track if user is manually editing slug
+            urlNameInput.addEventListener('input', function () {
+                isUserTypingSlug = true;
+            });
+
+            urlNameInput.addEventListener('blur', function () {
+                // Reset after a delay to allow auto-generation again
+                setTimeout(function () {
+                    if (urlNameInput.value === '') {
+                        isUserTypingSlug = false;
+                    }
+                }, 1000);
+            });
+
+            nameInput.addEventListener('input', function () {
+                const currentName = nameInput.value;
+                
+                // Only auto-generate if:
+                // 1. URL name is empty OR
+                // 2. URL name matches the old name's slug AND user isn't manually editing
+                if (!isUserTypingSlug) {
+                    const currentSlug = slugify(currentName);
+                    if (urlNameInput.value === '' || urlNameInput.value === slugify(lastNameValue)) {
+                        urlNameInput.value = currentSlug;
+                    }
+                }
+                lastNameValue = currentName;
+            });
+        }
+
+        // Form validation and submission
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                const name = nameInput ? nameInput.value.trim() : '';
+                
+                // Basic validation
+                if (!name) {
+                    e.preventDefault();
+                    alert('Please enter a destination name.');
+                    if (nameInput) {
+                        nameInput.focus();
+                    }
+                    return false;
+                }
+
+                // Disable submit button to prevent double submission
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<svg class="animate-spin h-5 w-5 inline-block mr-1.5 -mt-0.5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>Processing...';
+                }
+            });
+        }
+
+        // Helper function to create URL-friendly slugs
+        function slugify(text) {
+            return text
+                .toString()
+                .toLowerCase()
+                .trim()
+                .replace(/\s+/g, '-')           // Replace spaces with hyphens
+                .replace(/[^\w\-]+/g, '')       // Remove all non-word characters
+                .replace(/\-\-+/g, '-')         // Replace multiple hyphens with single hyphen
+                .replace(/^-+/, '')             // Trim hyphens from start
+                .replace(/-+$/, '')             // Trim hyphens from end
+                .substring(0, 180);             // Limit to 180 characters (model max_length)
+        }
+
+        // Price validation - ensure non-negative
+        const priceInput = document.getElementById('id_price_per_day');
+        if (priceInput) {
+            priceInput.addEventListener('input', function () {
+                const value = parseFloat(this.value);
+                if (value < 0) {
+                    this.value = '0';
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

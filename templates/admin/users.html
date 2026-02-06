@@ -1,0 +1,117 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Users{% endblock %}
+{% block header_title %}Registered Users{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+  <form method="get" class="flex gap-4 flex-1">
+    <input type="text" name="q" value="{{ search_term|default:'' }}" placeholder="Search name or email..."
+      class="w-full max-w-sm px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Search</button>
+  </form>
+  <a href="{% url 'adminpanel:user_add_admin' %}"
+    class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center">
+    <i class="fas fa-user-plus mr-2"></i> Create Admin
+  </a>
+</div>
+
+<div class="bg-white shadow-sm border border-gray-100 rounded-xl overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full text-left border-collapse">
+      <thead class="bg-gray-50 text-gray-500 text-xs uppercase font-medium">
+        <tr>
+          <th class="px-6 py-4">User</th>
+          <th class="px-6 py-4">Phone</th>
+          <th class="px-6 py-4">Joined</th>
+          <th class="px-6 py-4">Status</th>
+          <th class="px-6 py-4">Role</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-100 text-sm">
+        {% for u in users %}
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="px-6 py-4">
+            <div class="flex items-center">
+              <div
+                class="h-8 w-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3">
+                {{ u.email|make_list|first|upper }}
+              </div>
+              <div>
+                <div class="font-medium text-gray-900">{{ u.full_name|default:"No Name" }}</div>
+                <div class="text-xs text-gray-500">{{ u.email }}</div>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-4 text-gray-500">{{ u.phone|default:"-" }}</td>
+          <td class="px-6 py-4 text-gray-500">{{ u.date_joined|date:"M d, Y" }}</td>
+          <td class="px-6 py-4">
+            {% if u.is_active %}
+            <span class="inline-block w-2 h-2 rounded-full bg-green-500 mr-1"></span> Active
+            {% else %}
+            <span class="inline-block w-2 h-2 rounded-full bg-red-500 mr-1"></span> Inactive
+            {% endif %}
+          </td>
+          <td class="px-6 py-4 text-xs">
+            {% if u.is_superuser %}
+            <span class="px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-semibold">Superuser</span>
+            {% elif u.groups.all.0.name == 'Manager' %}
+            <span class="px-2 py-1 bg-indigo-100 text-indigo-700 rounded-full font-semibold">Manager</span>
+            {% elif u.is_staff %}
+            <span class="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-semibold">Staff</span>
+            {% else %}
+            <span class="px-2 py-1 bg-gray-100 text-gray-600 rounded-full font-semibold">Customer</span>
+            {% endif %}
+          <td class="px-6 py-4 text-xs font-medium">
+            <!-- Manager cannot delete Superuser or other Staff if strictness is needed -->
+            <!-- For now, we only hide delete if user is superuser and current user is not -->
+            {% if u.is_superuser or u.is_staff and not request.user.is_superuser %}
+            <span class="text-gray-400 cursor-not-allowed">Protected</span>
+            {% else %}
+            <a href="#" class="text-red-600 hover:text-red-900 ml-2">Delete</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="px-6 py-8 text-center text-gray-500">No users found.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if users.has_other_pages %}
+  <div class="bg-white px-4 py-3 border-t border-gray-200 flex items-center justify-between sm:px-6">
+    <div class="flex-1 flex justify-between sm:hidden">
+      {% if users.has_previous %}
+      <a href="?page={{ users.previous_page_number }}{% if search_term %}&q={{ search_term }}{% endif %}"
+        class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Previous</a>
+      {% endif %}
+      {% if users.has_next %}
+      <a href="?page={{ users.next_page_number }}{% if search_term %}&q={{ search_term }}{% endif %}"
+        class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">Next</a>
+      {% endif %}
+    </div>
+    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+      <div>
+        <p class="text-sm text-gray-700">Page {{ users.number }} of {{ users.paginator.num_pages }}</p>
+      </div>
+      <div>
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
+          {% if users.has_previous %}
+          <a href="?page={{ users.previous_page_number }}{% if search_term %}&q={{ search_term }}{% endif %}"
+            class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Prev</a>
+          {% endif %}
+
+          {% if users.has_next %}
+          <a href="?page={{ users.next_page_number }}{% if search_term %}&q={{ search_term }}{% endif %}"
+            class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">Next</a>
+          {% endif %}
+        </nav>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

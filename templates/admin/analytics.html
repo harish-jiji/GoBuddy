@@ -1,0 +1,100 @@
+{% extends 'admin/base_admin.html' %}
+{% block title %}Analytics{% endblock %}
+{% block header_title %}Analytics & Reports{% endblock %}
+
+{% block content %}
+
+<!-- Filters -->
+<div class="flex justify-end mb-6">
+  <div class="inline-flex shadow-sm rounded-md" role="group">
+    <a href="?days=7"
+      class="px-4 py-2 text-sm font-medium border border-gray-200 rounded-l-lg hover:bg-gray-100 {% if days_range == 7 %}bg-blue-600 text-white hover:bg-blue-700 border-blue-600{% else %}bg-white text-gray-900{% endif %}">
+      7 Days
+    </a>
+    <a href="?days=30"
+      class="px-4 py-2 text-sm font-medium border-t border-b border-gray-200 hover:bg-gray-100 {% if days_range == 30 %}bg-blue-600 text-white hover:bg-blue-700 border-blue-600{% else %}bg-white text-gray-900{% endif %}">
+      30 Days
+    </a>
+    <a href="?days=90"
+      class="px-4 py-2 text-sm font-medium border border-gray-200 rounded-r-lg hover:bg-gray-100 {% if days_range == 90 %}bg-blue-600 text-white hover:bg-blue-700 border-blue-600{% else %}bg-white text-gray-900{% endif %}">
+      90 Days
+    </a>
+  </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+  <!-- Revenue Chart -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="text-lg font-bold text-gray-900 mb-4">Revenue Trend (₹)</h3>
+    <div class="relative h-72 w-full">
+      <canvas id="revenueChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Bookings Chart -->
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+    <h3 class="text-lg font-bold text-gray-900 mb-4">Bookings Growth</h3>
+    <div class="relative h-72 w-full">
+      <canvas id="bookingsChart"></canvas>
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ dates|json_script:"dates-data" }}
+{{ revenues|json_script:"revenues-data" }}
+{{ counts|json_script:"counts-data" }}
+
+<script>
+  // Data from Django
+  const labels = JSON.parse(document.getElementById('dates-data').textContent);
+  const revenueData = JSON.parse(document.getElementById('revenues-data').textContent);
+  const bookingsData = JSON.parse(document.getElementById('counts-data').textContent);
+
+  // Revenue Chart
+  new Chart(document.getElementById('revenueChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Revenue',
+        data: revenueData,
+        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+        borderColor: 'rgba(16, 185, 129, 1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+
+  // Bookings Chart
+  new Chart(document.getElementById('bookingsChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Bookings',
+        data: bookingsData,
+        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+        borderColor: 'rgba(59, 130, 246, 1)',
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+    }
+  });
+</script>
+{% endblock %}

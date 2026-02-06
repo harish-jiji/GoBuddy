@@ -1,0 +1,569 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<style>
+    * {
+        font-family: 'Inter', sans-serif;
+    }
+
+    .glass {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .destination-card {
+        transition: all 0.3s ease;
+    }
+
+    .destination-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .selected-destination {
+        border: 2px solid #667eea;
+        box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+    }
+</style>
+
+<!-- Google Maps API -->
+<script src="https://maps.googleapis.com/maps/api/js?key={{ GOOGLE_MAPS_API_KEY }}&libraries=places&callback=init" async
+    defer></script>
+
+<div class="max-w-5xl mx-auto space-y-8 pb-32">
+
+    <!-- HEADER -->
+    <div class="glass p-8 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-blue-600/10 to-purple-600/10"></div>
+        <div class="relative z-10">
+            <h1 class="text-3xl font-bold text-white mb-2">Edit Trip Plan</h1>
+            <p class="text-gray-300">Update your itinerary details and preferences</p>
+        </div>
+    </div>
+
+    <!-- TRIP BASICS -->
+    <div class="glass p-6 border-l-4 border-purple-500">
+        <h3 class="text-xl font-bold text-white mb-4">
+            <i class="fas fa-info-circle text-purple-400 mr-2"></i>
+            Trip Basics
+        </h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">Number of
+                    Days</label>
+                <div class="flex items-center gap-4">
+                    <button type="button" onclick="changeDays(-1)"
+                        class="glass px-4 py-2 rounded-lg hover:bg-white/10 transition"><i
+                            class="fas fa-minus"></i></button>
+                    <div class="text-center flex-1">
+                        <div class="text-3xl font-bold text-blue-400" id="daysDisplay">{{ trip.number_of_days }}</div>
+                        <div class="text-xs text-gray-400">Days</div>
+                    </div>
+                    <button type="button" onclick="changeDays(1)"
+                        class="glass px-4 py-2 rounded-lg hover:bg-white/10 transition"><i
+                            class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs uppercase tracking-wider text-gray-400 font-semibold mb-2">Trip
+                    Title</label>
+                <input type="text" id="tripTitle" value="{{ trip.title }}"
+                    class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white outline-none focus:border-purple-500 transition">
+            </div>
+        </div>
+    </div>
+
+    <!-- FORM -->
+    <form id="editTripForm" method="POST">
+        {% csrf_token %}
+        <input type="hidden" name="itinerary_json" id="itineraryJson">
+        <input type="hidden" name="start_location" id="startLocationInput">
+        <input type="hidden" name="end_location" id="finalEndLocationInput">
+        <input type="hidden" name="destination_ids" id="destinationIdsInput">
+        <input type="hidden" name="number_of_days" id="numberOfDaysInput" value="{{ trip.number_of_days }}">
+        <input type="hidden" name="title" id="titleInput" value="{{ trip.title }}">
+        <input type="hidden" name="status" id="statusInput" value="{{ trip.status }}">
+        <input type="hidden" name="start_date" id="startDateInput" value="{{ trip.start_date|date:'Y-m-d' }}">
+
+        <!-- Preferences Inputs -->
+        <input type="hidden" name="travel_style" id="styleInput" value="{{ trip.travel_style }}">
+        <input type="hidden" name="accommodation" id="accommodationInput" value="{{ trip.accommodation }}">
+        <input type="hidden" name="transportation" id="transportationInput" value="{{ trip.transportation }}">
+        <input type="hidden" name="meals" id="mealsInput" value="{{ trip.meals }}">
+        <input type="hidden" name="budget" id="budgetInput" value="{{ trip.budget }}">
+
+        <!-- STARTING LOCATION -->
+        <div class="glass p-6 border-l-4 border-green-500 mb-8 mt-8">
+            <h3 class="text-xl font-bold text-white mb-4">Start Location</h3>
+            <div class="relative">
+                <input type="text" id="startLocation" value="{{ trip.start_location }}"
+                    class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white outline-none focus:border-green-500 transition">
+                <i class="fas fa-map-pin absolute right-4 top-3.5 text-gray-400"></i>
+            </div>
+        </div>
+
+        <!-- DAYS CONTAINER -->
+        <div id="daysContainer" class="space-y-12"></div>
+
+        <!-- FINAL END LOCATION -->
+        <div class="glass p-6 mt-12 border-l-4 border-red-500 mb-8">
+            <h3 class="text-xl font-bold text-white mb-4">Trip Conclusion</h3>
+            <div class="relative">
+                <input type="text" id="finalEndLocation" value="{{ trip.end_location }}"
+                    class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white outline-none focus:border-red-500 transition">
+                <i class="fas fa-map-pin absolute right-4 top-3.5 text-gray-400"></i>
+            </div>
+        </div>
+
+        <!-- COST -->
+        <div class="glass p-6 border-l-4 border-yellow-500 mb-24">
+            <h3 class="text-xl font-bold text-white mb-4">Estimated Cost</h3>
+            <div class="flex items-center justify-between">
+                <div class="text-gray-300">Grand Total:</div>
+                <div class="text-3xl font-bold text-yellow-400" id="grandTotalDisplay">₹{{ trip.budget|default:0 }}
+                </div>
+            </div>
+        </div>
+
+        <!-- ACTION BAR -->
+        <div
+            class="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 border-t border-white/10 p-4 flex justify-center gap-4 z-50">
+            <a href="{% url 'customers:trip_detail' trip.id %}" class="px-8 py-3 glass text-white rounded-lg">Cancel</a>
+            <button type="button" onclick="submitEdit('draft')"
+                class="px-8 py-3 bg-yellow-600/20 text-yellow-400 rounded-lg font-bold">Save Draft</button>
+            <button type="button" onclick="submitEdit('pending')"
+                class="px-8 py-3 gradient text-white rounded-lg font-bold">Update Trip</button>
+        </div>
+
+    </form>
+</div>
+
+<!-- DATA LOADING -->
+{{ destinations_data|json_script:"all-destinations-data" }}
+{{ trip_itinerary_json|json_script:"raw-itinerary-data" }}
+{{ trip_destination_ids|json_script:"dest-ids-data" }}
+{{ activity_choices|json_script:"activity-choices-data" }}
+{{ transport_choices|json_script:"transport-choices-data" }}
+{{ accommodation_choices|json_script:"accommodation-choices-data" }}
+{{ meal_choices|json_script:"meal-choices-data" }}
+
+<script>
+    // --- PARSE HELPERS ---
+    function getJsonFromScript(id) {
+        try {
+            const el = document.getElementById(id);
+            if (!el) return null;
+            return JSON.parse(el.textContent);
+        } catch (e) {
+            console.error('Error parsing JSON from ' + id, e);
+            return null;
+        }
+    }
+
+    // --- LOAD DATA ---
+    const RAW_ITINERARY_STRING = getJsonFromScript('raw-itinerary-data');
+    const EXISTING_DEST_IDS = getJsonFromScript('dest-ids-data') || [];
+    const ALL_DESTINATIONS_DATA = getJsonFromScript('all-destinations-data') || [];
+
+    // Choices
+    const ACTIVITY_OPTS = getJsonFromScript('activity-choices-data') || [];
+    const TRANSPORT_OPTS = getJsonFromScript('transport-choices-data') || [];
+    const ACCOMMODATION_OPTS = getJsonFromScript('accommodation-choices-data') || [];
+    const MEAL_OPTS = getJsonFromScript('meal-choices-data') || [];
+
+    // Parse destinations helper
+    const ALL_DESTINATIONS = ALL_DESTINATIONS_DATA.map(d => ({
+        id: d.id, name: d.name, state: d.state
+    }));
+
+    // --- STATE ---
+    let selectedDestinations = [];
+    // Init from existing ids
+    EXISTING_DEST_IDS.forEach(id => {
+        const d = ALL_DESTINATIONS.find(x => x.id === id);
+        if (d) selectedDestinations.push(d);
+    });
+
+    let TRIP_DESTINATIONS = [...selectedDestinations];
+    let itineraryData = [];
+    let TRIP_DAYS = parseInt("{{ trip.number_of_days }}") || 1;
+    let TRIP_START_LOC = "{{ trip.start_location }}";
+
+    // --- INITIALIZATION ---
+    function init() {
+        // Setup Itinerary Data
+        let loadedItinerary = [];
+        try {
+            if (typeof RAW_ITINERARY_STRING === 'string') {
+                loadedItinerary = JSON.parse(RAW_ITINERARY_STRING);
+            } else if (Array.isArray(RAW_ITINERARY_STRING)) {
+                loadedItinerary = RAW_ITINERARY_STRING;
+            }
+        } catch (e) { console.error("Parse error", e); }
+
+        if (loadedItinerary && loadedItinerary.length > 0) {
+            itineraryData = loadedItinerary;
+            // Validate Structure
+            itineraryData.forEach((day, idx) => {
+                day.day = idx + 1;
+                if (!day.items) day.items = [];
+            });
+            if (itineraryData.length > TRIP_DAYS) {
+                TRIP_DAYS = itineraryData.length;
+                updateDaysDisplay(0);
+            }
+        } else {
+            updateItineraryDays();
+        }
+
+        renderItinerary();
+        setupInputListeners();
+        calculateTotalCost();
+    }
+
+    function updateDaysDisplay(delta) {
+        if (delta !== 0) {
+            TRIP_DAYS = Math.max(1, Math.min(30, TRIP_DAYS + delta));
+            updateItineraryDays();
+        }
+        document.getElementById('daysDisplay').innerText = TRIP_DAYS;
+        document.getElementById('numberOfDaysInput').value = TRIP_DAYS;
+    }
+
+    // --- ITINERARY LOGIC ---
+    function updateItineraryDays() {
+        if (!Array.isArray(itineraryData)) itineraryData = [];
+        while (itineraryData.length < TRIP_DAYS) {
+            itineraryData.push({
+                day: itineraryData.length + 1,
+                start_location: (itineraryData.length === 0) ? TRIP_START_LOC : '',
+                start_time: '09:00',
+                items: [],
+                accommodation: '',
+                food_spot: '',
+                end_location: ''
+            });
+        }
+        if (itineraryData.length > TRIP_DAYS) {
+            itineraryData = itineraryData.slice(0, TRIP_DAYS);
+        }
+        renderItinerary();
+    }
+
+    // --- RENDERING ---
+    function renderItinerary() {
+        const container = document.getElementById('daysContainer');
+        if (!container) return;
+
+        let html = '';
+        itineraryData.forEach((day, index) => {
+            if (!day.items) day.items = [];
+
+            html += `
+            <div class="day-section relative pl-8" data-day-index="${index}">
+                <div class="absolute left-[3px] top-0 bottom-0 w-0.5 bg-white/10"></div>
+                <div class="absolute -left-[6px] top-0 w-5 h-5 bg-blue-500 border-4 border-[#0f172a] rounded-full z-10"></div>
+
+                <div class="glass p-5 mb-12 border-l-4 border-blue-500">
+                    <!-- HEADER -->
+                    <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
+                        <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                            <span class="bg-blue-600/20 text-blue-400 text-sm px-3 py-1 rounded-full border border-blue-500/30">Day ${day.day}</span>
+                            <span class="text-gray-300 text-lg">Itinerary</span>
+                        </h2>
+                         <div class="text-right">
+                            <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Items</div>
+                            <div class="text-xl font-bold text-white">${day.items.length}</div>
+                        </div>
+                    </div>
+
+                    <!-- START LOCATION -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div>
+                            <label class="text-[10px] text-green-400 uppercase font-bold mb-1 block">Start Location</label>
+                            <input type="text" value="${day.start_location || ''}" 
+                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-green-500 transition"
+                                placeholder="Where does the day start?"
+                                onchange="updateDayField(${index}, 'start_location', this.value)">
+                        </div>
+                        <div>
+                            <label class="text-[10px] text-gray-400 uppercase font-bold mb-1 block">Start Time</label>
+                            <input type="time" value="${day.start_time || '09:00'}"
+                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-blue-500 transition"
+                                onchange="updateDayField(${index}, 'start_time', this.value)">
+                        </div>
+                    </div>
+
+                    <!-- ITEMS LIST -->
+                    <div class="space-y-4 relative pl-6 mb-4">
+                        <div class="absolute left-[10px] top-2 bottom-2 w-px bg-gray-700 bg-dashed"></div>
+                        ${renderItems(day.items, index)}
+                    </div>
+                    
+                    <!-- ADD BUTTONS -->
+                    <div class="flex gap-2 mb-4">
+                        <button type="button" onclick="addLocation(${index})"
+                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-blue-500 hover:bg-blue-500/5 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-map-marker-alt"></i> Add Location
+                        </button>
+                        <button type="button" onclick="addActivity(${index})"
+                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-green-500 hover:bg-green-500/5 transition flex items-center justify-center gap-2 text-sm">
+                            <i class="fas fa-plus"></i> Add Activity
+                        </button>
+                    </div>
+
+                    <!-- END OF DAY -->
+                    <div class="mt-8 pt-6 border-t border-white/10 grid grid-cols-1 md:grid-cols-2 gap-6">
+                         <div>
+                            <label class="text-[10px] text-red-400 uppercase font-bold mb-1 block">End Location (Next Day Start)</label>
+                            <input type="text" value="${day.end_location || ''}" 
+                                class="w-full bg-black/20 border border-white/10 rounded px-3 py-2 text-white outline-none focus:border-red-500 transition"
+                                placeholder="Where does the day end?"
+                                onchange="updateDayField(${index}, 'end_location', this.value)">
+                        </div>
+                    </div>
+
+                </div>
+            </div>`;
+
+            // Next Day Button
+            if (index < itineraryData.length - 1 && index < TRIP_DAYS - 1) {
+                const nextDay = itineraryData[index + 1];
+                if (nextDay && (!nextDay.items || nextDay.items.length === 0)) {
+                    html += `
+                     <div class="flex justify-center my-8">
+                         <button type="button" onclick="startNextDay(${index + 1})"
+                             class="px-6 py-3 glass border-2 border-dashed border-blue-500 rounded-xl text-blue-400 hover:text-white hover:bg-blue-500/10 transition flex items-center gap-2">
+                             <i class="fas fa-plus-circle"></i>
+                             <span>Start Day ${nextDay.day || index + 2} Plan</span>
+                         </button>
+                     </div>`;
+                }
+            }
+        });
+        container.innerHTML = html;
+        calculateTotalCost();
+    }
+
+    function renderItems(items, dayIndex) {
+        if (!items || items.length === 0) return '<div class="text-xs text-gray-500 italic pl-4">No items added. Add a location first, then activities.</div>';
+
+        return items.map((item, itemIndex) => {
+            const itemType = item.item_type || (item.type === 'location' ? 'location' : 'activity');
+
+            if (itemType === 'location') {
+                // Render Location Item
+                let destOptions = '<option value="">Select from Selected Destinations</option>';
+                TRIP_DESTINATIONS.forEach(d => {
+                    destOptions += `<option value="${d.id}" ${item.destination_id == d.id ? 'selected' : ''}>${d.name}</option>`;
+                });
+
+                return `
+                <div class="relative flex items-start gap-3 mb-4 group" data-item-index="${itemIndex}">
+                    <div class="w-3 h-3 rounded-full bg-blue-500 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
+                    <div class="flex-1 bg-blue-500/10 border-l-2 border-blue-500 rounded-r-lg p-3 hover:bg-blue-500/20 transition">
+                        <div class="flex justify-between mb-2">
+                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Location Name"
+                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-blue-500 outline-none w-3/4"
+                                 onchange="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
+                            <button type="button" onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2">
+                            <div class="col-span-12">
+                                <label class="block text-[9px] uppercase text-gray-400 mb-1">Select from Trip Destinations</label>
+                                <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
+                                     onchange="handleLocationSelect(${dayIndex}, ${itemIndex}, this.value)">
+                                    ${destOptions}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            } else {
+                // Render Activity Item
+                const mainType = item.item_type || 'activity';
+                const subType = item.sub_type || '';
+
+                let subTypeDocs = '';
+                if (mainType === 'travel') {
+                    subTypeDocs = TRANSPORT_OPTS.map(opt => `<option value="${opt[0]}" ${subType == opt[0] ? 'selected' : ''}>${opt[1]}</option>`).join('');
+                } else if (mainType === 'food') {
+                    subTypeDocs = MEAL_OPTS.map(opt => `<option value="${opt[0]}" ${subType == opt[0] ? 'selected' : ''}>${opt[1]}</option>`).join('');
+                } else if (mainType === 'accommodation') {
+                    subTypeDocs = ACCOMMODATION_OPTS.map(opt => `<option value="${opt[0]}" ${subType == opt[0] ? 'selected' : ''}>${opt[1]}</option>`).join('');
+                } else {
+                    subTypeDocs = ACTIVITY_OPTS.map(opt => `<option value="${opt[0]}" ${subType == opt[0] ? 'selected' : ''}>${opt[1]}</option>`).join('');
+                }
+
+                return `
+                <div class="relative flex items-start gap-3 mb-4 group">
+                    <div class="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
+                    <div class="flex-1 bg-white/5 border-l-2 border-green-400/30 rounded-r-lg p-3 hover:bg-white/10 transition">
+                        <div class="flex justify-between mb-2">
+                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Activity Name"
+                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-green-500 outline-none w-3/4"
+                                 onchange="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
+                            <button onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
+                        </div>
+                        <div class="grid grid-cols-12 gap-2">
+                            <div class="col-span-3">
+                                <label class="block text-[9px] uppercase text-gray-500">Type</label>
+                                <select class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1"
+                                     onchange="updateItemType(${dayIndex}, ${itemIndex}, this.value)">
+                                    <option value="activity" ${mainType === 'activity' ? 'selected' : ''}>Activity</option>
+                                    <option value="travel" ${mainType === 'travel' ? 'selected' : ''}>Travel</option>
+                                    <option value="food" ${mainType === 'food' ? 'selected' : ''}>Food</option>
+                                    <option value="accommodation" ${mainType === 'accommodation' ? 'selected' : ''}>Accommodation</option>
+                                </select>
+                            </div>
+                            <div class="col-span-3">
+                                <label class="block text-[9px] uppercase text-gray-500">Sub-Type</label>
+                                 <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
+                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'sub_type', this.value)">
+                                    <option value="">Select Sub-Type</option>
+                                    ${subTypeDocs}
+                                </select>
+                            </div>
+                            <div class="col-span-3">
+                                <label class="block text-[9px] uppercase text-gray-500">Duration (hrs)</label>
+                                <input type="number" value="${item.duration || 1}" min="0.5" step="0.5" class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
+                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'duration', this.value)">
+                            </div>
+                            <div class="col-span-3">
+                                <label class="block text-[9px] uppercase text-gray-500">Cost (₹)</label>
+                                <input type="number" value="${item.cost || ''}" placeholder="0" min="0" class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
+                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'cost', this.value)">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }).join('');
+    }
+
+    // --- HELPER FUNCTIONS ---
+    function getSubTypeOptions(toType) {
+        if (toType === 'travel') return TRANSPORT_OPTS.map(opt => ({ value: opt[0], label: opt[1] }));
+        if (toType === 'food') return MEAL_OPTS.map(opt => ({ value: opt[0], label: opt[1] }));
+        if (toType === 'accommodation') return ACCOMMODATION_OPTS.map(opt => ({ value: opt[0], label: opt[1] }));
+        return ACTIVITY_OPTS.map(opt => ({ value: opt[0], label: opt[1] }));
+    }
+
+    // --- UPDATERS ---
+    function updateDayField(dIdx, field, val) {
+        itineraryData[dIdx][field] = val;
+        if (field === 'end_location') {
+            if (itineraryData[dIdx + 1] && !itineraryData[dIdx + 1].start_location) {
+                itineraryData[dIdx + 1].start_location = val;
+                renderItinerary();
+            }
+        }
+    }
+
+    function updateItemField(dIdx, iIdx, field, val) {
+        if (!itineraryData[dIdx]) return;
+        itineraryData[dIdx].items[iIdx][field] = val;
+        if (field === 'cost') calculateTotalCost();
+    }
+
+    function updateItemType(dIdx, iIdx, val) {
+        itineraryData[dIdx].items[iIdx].item_type = val;
+        itineraryData[dIdx].items[iIdx].sub_type = ''; // Reset sub type
+        renderItinerary();
+    }
+
+    function addLocation(dIdx) {
+        if (!itineraryData[dIdx].items) itineraryData[dIdx].items = [];
+        const newLocation = { item_type: 'location', name: '', destination_id: '' };
+        itineraryData[dIdx].items.push(newLocation);
+        renderItinerary();
+    }
+
+    function startNextDay(dayIndex) {
+        if (dayIndex >= TRIP_DAYS) return;
+        if (!itineraryData[dayIndex]) return;
+
+        // Auto-fill form previous
+        const prevDay = itineraryData[dayIndex - 1];
+        if (prevDay && prevDay.end_location) {
+            itineraryData[dayIndex].start_location = prevDay.end_location;
+        }
+        renderItinerary();
+        setTimeout(() => {
+            const el = document.querySelector(`[data-day-index="${dayIndex}"]`);
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+    }
+
+    function addActivity(dIdx) {
+        if (!itineraryData[dIdx].items) itineraryData[dIdx].items = [];
+        itineraryData[dIdx].items.push({
+            item_type: 'activity', name: '', type: 'activity', sub_type: '', duration: 1, cost: ''
+        });
+        renderItinerary();
+    }
+
+    function removeItem(dIdx, iIdx) {
+        if (!itineraryData[dIdx].items) return;
+        itineraryData[dIdx].items.splice(iIdx, 1);
+        renderItinerary();
+    }
+
+    function handleLocationSelect(dIdx, iIdx, value) {
+        if (value) {
+            const dest = TRIP_DESTINATIONS.find(d => d.id == value);
+            if (dest) {
+                itineraryData[dIdx].items[iIdx].name = dest.name;
+                itineraryData[dIdx].items[iIdx].destination_id = value;
+            }
+        } else {
+            itineraryData[dIdx].items[iIdx].name = '';
+            itineraryData[dIdx].items[iIdx].destination_id = '';
+        }
+        renderItinerary();
+    }
+
+    function calculateTotalCost() {
+        let total = 0;
+        if (itineraryData && Array.isArray(itineraryData)) {
+            itineraryData.forEach(day => {
+                if (day.items) {
+                    day.items.forEach(item => { total += parseFloat(item.cost) || 0; });
+                }
+            });
+        }
+        document.getElementById('grandTotalDisplay').innerText = '₹' + total;
+        document.getElementById('budgetInput').value = total;
+    }
+
+    function submitEdit(status) {
+        document.getElementById('statusInput').value = status;
+        document.getElementById('itineraryJson').value = JSON.stringify(itineraryData);
+        document.getElementById('titleInput').value = document.getElementById('tripTitle').value;
+        document.getElementById('startDateInput').value = document.getElementById('startDate').value || '';
+        document.getElementById('startLocationInput').value = document.getElementById('startLocation').value;
+        document.getElementById('finalEndLocationInput').value = document.getElementById('finalEndLocation').value;
+        document.getElementById('destinationIdsInput').value = selectedDestinations.map(d => d.id).join(',');
+
+        document.getElementById('editTripForm').submit();
+    }
+
+    function setupInputListeners() {
+        const startLoc = document.getElementById('startLocation');
+        if (startLoc) {
+            startLoc.addEventListener('input', function () {
+                TRIP_START_LOC = this.value;
+                if (itineraryData[0] && !itineraryData[0].start_location) itineraryData[0].start_location = this.value;
+            });
+        }
+    }
+
+    window.changeDays = function (delta) {
+        updateDaysDisplay(delta);
+    }
+
+    window.onload = init;
+</script>
+
+{% endblock %}

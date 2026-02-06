@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>GoBuddy - Your Travel Companion</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .glass-effect {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .card-hover {
+      transition: all 0.3s ease;
+    }
+
+    .card-hover:hover {
+      transform: translateY(-5px);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.6s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .ripple {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .ripple::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+
+    .ripple:active::before {
+      width: 300px;
+      height: 300px;
+    }
+  </style>
+</head>
+
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 text-white font-sans">
+
+  <!-- Navbar -->
+  <header class="fixed top-0 left-0 w-full z-50 glass-effect border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between items-center py-4">
+
+        <!-- Logo -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 gradient-bg rounded-xl flex items-center justify-center">
+            <i class="fas fa-plane text-white text-lg"></i>
+          </div>
+          <div>
+            <h1 class="text-2xl font-bold">
+              <span class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Go</span>Buddy
+            </h1>
+            <p class="text-xs text-gray-400">Your Travel Companion</p>
+          </div>
+        </div>
+
+        <!-- Desktop Navigation -->
+        <nav class="hidden lg:flex items-center space-x-8">
+          <a href="#destinations" class="text-white hover:text-blue-400">Destinations</a>
+          <a href="#packages" class="text-white hover:text-blue-400">Packages</a>
+          <a href="#offers" class="text-white hover:text-blue-400">Offers</a>
+          <a href="#contact" class="text-white hover:text-blue-400">Contact</a>
+        </nav>
+
+        <!-- Auth Buttons -->
+        <div class="hidden lg:flex items-center space-x-4">
+          <a href="{% url 'core:signin' %}" class="px-4 py-2 glass-effect rounded-xl hover:bg-white/10">Sign In</a>
+          <a href="{% url 'core:signup' %}" class="px-6 py-2 gradient-bg rounded-xl hover:opacity-90">Sign Up</a>
+        </div>
+
+        <!-- Mobile Menu Button -->
+        <button id="mobileMenuBtn" class="lg:hidden p-2 glass-effect rounded-xl">
+          <i class="fas fa-bars text-xl"></i>
+        </button>
+      </div>
+
+      <!-- Mobile Menu -->
+      <div id="mobileMenu" class="hidden lg:hidden glass-effect rounded-xl mt-4 p-4 space-y-2">
+        <a href="#destinations" class="block px-4 py-3 hover:bg-white/10">Destinations</a>
+        <a href="#packages" class="block px-4 py-3 hover:bg-white/10">Packages</a>
+        <a href="#offers" class="block px-4 py-3 hover:bg-white/10">Offers</a>
+        <a href="#contact" class="block px-4 py-3 hover:bg-white/10">Contact</a>
+
+        <div class="border-t border-white/10 pt-4 mt-4 space-y-2">
+          <a href="{% url 'core:signin' %}" class="px-4 py-2 glass-effect rounded-xl hover:bg-white/10">Sign In</a>
+          <a href="{% url 'core:signup' %}" class="px-6 py-2 gradient-bg rounded-xl hover:opacity-90">Sign Up</a>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="relative w-full h-screen overflow-hidden">
+
+    <!-- Background Slideshow -->
+    <div id="slideshow" class="absolute inset-0 w-full h-full">
+      <div class="slide absolute inset-0 w-full h-full bg-gradient-to-br from-blue-900 via-purple-900 to-indigo-900">
+      </div>
+      <div class="slide absolute inset-0 w-full h-full bg-gradient-to-br from-green-900 via-teal-900 to-blue-900"></div>
+      <div class="slide absolute inset-0 w-full h-full bg-gradient-to-br from-purple-900 via-pink-900 to-red-900"></div>
+      <div class="slide absolute inset-0 w-full h-full bg-gradient-to-br from-yellow-900 via-orange-900 to-red-900">
+      </div>
+      <div class="slide absolute inset-0 w-full h-full bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+      </div>
+    </div>
+
+    <!-- Hero Content -->
+    <div class="relative z-10 flex flex-col justify-center items-center text-center h-full px-4 sm:px-6 lg:px-8">
+      <div class="max-w-4xl mx-auto">
+
+        <h1 class="text-6xl font-bold mb-6 leading-tight">
+          <span class="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+            From Dream To
+          </span>
+          <br>
+          <span class="text-white">Destination</span>
+        </h1>
+
+        <p class="text-xl text-gray-200 mb-12 max-w-3xl mx-auto">
+          Discover breathtaking places and create unforgettable memories with GoBuddy.
+        </p>
+
+        <!-- Search Bar -->
+        <div class="max-w-2xl mx-auto mb-8">
+          <div class="glass-effect rounded-2xl p-2 flex flex-col sm:flex-row gap-2">
+            <div class="flex-1 relative">
+              <i class="fas fa-map-marker-alt absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+              <input type="text" placeholder="Where do you want to go?"
+                class="w-full pl-12 pr-4 py-4 bg-transparent text-white placeholder-gray-400">
+            </div>
+            <div class="flex gap-2">
+              <select class="px-4 py-4 bg-transparent text-white border-r border-white/20">
+                <option value="">Duration</option>
+                <option value="3">3 Days</option>
+                <option value="5">5 Days</option>
+                <option value="7">7 Days</option>
+                <option value="10">10+ Days</option>
+              </select>
+              <button class="px-8 py-4 gradient-bg rounded-xl font-semibold ripple">
+                <i class="fas fa-search mr-2"></i>Search
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-2xl mx-auto">
+          <div class="text-center">
+            <div class="text-3xl font-bold text-blue-400">50+</div>
+            <div class="text-sm text-gray-400">Destinations</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-green-400">10K+</div>
+            <div class="text-sm text-gray-400">Happy Travelers</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-purple-400">500+</div>
+            <div class="text-sm text-gray-400">Packages</div>
+          </div>
+          <div class="text-center">
+            <div class="text-3xl font-bold text-pink-400">24/7</div>
+            <div class="text-sm text-gray-400">Support</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+
+  <!-- Popular Destinations -->
+  <section id="destinations" class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <div class="text-center mb-16">
+        <h2 class="text-5xl font-bold">Popular <span
+            class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Destinations</span></h2>
+        <p class="text-xl text-gray-300 max-w-3xl mx-auto">Discover the most breathtaking locations in India.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+
+        {% for d in featured %}
+        <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+          <div class="relative h-64">
+            {% if d.image %}
+            <img src="{{ d.image.url }}" class="absolute inset-0 w-full h-full object-cover">
+            {% else %}
+            <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600"></div>
+            {% endif %}
+            <div class="absolute bottom-4 left-4">
+              <h3 class="text-2xl font-bold text-white">{{ d.name }}</h3>
+              <p class="text-white/90">{{ d.country }}</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-300 mb-4">{{ d.description|truncatechars:100 }}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-lg font-bold text-blue-400">From ₹{{ d.price_per_day }}</span>
+              <a href="{% url 'core:destination_detail' d.url_name %}" class="text-blue-400 hover:underline">Explore</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- Travel Packages -->
+  <section id="packages" class="py-20 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+
+      <div class="text-center mb-16">
+        <h2 class="text-5xl font-bold">Personalized <span
+            class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Travel Packages</span>
+        </h2>
+        <p class="text-xl text-gray-300">Choose the perfect package for your travel type.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+        {% for p in honeymoon %}
+        <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+          <div class="relative h-48 bg-gradient-to-br from-pink-400 to-rose-500">
+            <div class="absolute bottom-4 left-4">
+              <h3 class="text-2xl font-bold text-white">{{ p.name }}</h3>
+              <p class="text-white/90">Honeymoon</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-300 mb-4">{{ p.short_description|truncatechars:90 }}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-400">From ₹{{ p.total_cost }}</span>
+              <a href="{% url 'core:package_detail' p.pk %}"
+                class="px-4 py-2 gradient-bg rounded-lg text-sm">Explore</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        {% for p in family %}
+        <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+          <div class="relative h-48 bg-gradient-to-br from-blue-400 to-cyan-500">
+            <div class="absolute bottom-4 left-4">
+              <h3 class="text-2xl font-bold text-white">{{ p.name }}</h3>
+              <p class="text-white/90">Family</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-300 mb-4">{{ p.short_description|truncatechars:90 }}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-400">From ₹{{ p.total_cost }}</span>
+              <a href="{% url 'core:package_detail' p.pk %}"
+                class="px-4 py-2 gradient-bg rounded-lg text-sm">Explore</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        {% for p in solo %}
+        <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+          <div class="relative h-48 bg-gradient-to-br from-green-400 to-emerald-500">
+            <div class="absolute bottom-4 left-4">
+              <h3 class="text-2xl font-bold text-white">{{ p.name }}</h3>
+              <p class="text-white/90">Solo</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-300 mb-4">{{ p.short_description|truncatechars:90 }}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-400">From ₹{{ p.total_cost }}</span>
+              <a href="{% url 'core:package_detail' p.pk %}"
+                class="px-4 py-2 gradient-bg rounded-lg text-sm">Explore</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+        {% for p in friends %}
+        <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+          <div class="relative h-48 bg-gradient-to-br from-purple-400 to-pink-500">
+            <div class="absolute bottom-4 left-4">
+              <h3 class="text-2xl font-bold text-white">{{ p.name }}</h3>
+              <p class="text-white/90">Friends</p>
+            </div>
+          </div>
+          <div class="p-6">
+            <p class="text-gray-300 mb-4">{{ p.short_description|truncatechars:90 }}</p>
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-400">From ₹{{ p.total_cost }}</span>
+              <a href="{% url 'core:package_detail' p.pk %}"
+                class="px-4 py-2 gradient-bg rounded-lg text-sm">Explore</a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+    </div>
+  </section>
+
+
+
+  <!-- Footer -->
+  <footer id="contact" class="py-16 px-4 sm:px-6 lg:px-8 glass-effect border-t border-white/10">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+
+        <div>
+          <h3 class="text-2xl font-bold"><span
+              class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Go</span>Buddy</h3>
+          <p class="text-gray-300 mt-4">Your Travel Companion</p>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Quick Links</h4>
+          <div class="space-y-3 mt-4">
+            <a href="#destinations" class="block text-gray-300 hover:text-blue-400">Destinations</a>
+            <a href="#packages" class="block text-gray-300 hover:text-blue-400">Packages</a>
+            <a href="#offers" class="block text-gray-300 hover:text-blue-400">Offers</a>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Support</h4>
+          <div class="space-y-3 mt-4">
+            <a href="#" class="block text-gray-300 hover:text-blue-400">Help Center</a>
+            <a href="#" class="block text-gray-300 hover:text-blue-400">FAQ</a>
+            <a href="#" class="block text-gray-300 hover:text-blue-400">Privacy Policy</a>
+          </div>
+        </div>
+
+        <div>
+          <h4 class="text-lg font-semibold">Contact</h4>
+          <div class="space-y-3 mt-4">
+            <p class="flex items-center space-x-3"><i class="fas fa-phone text-blue-400"></i><span>+91 98765
+                43210</span></p>
+            <p class="flex items-center space-x-3"><i
+                class="fas fa-envelope text-blue-400"></i><span>info@gobuddy.com</span></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="border-t border-white/10 mt-12 pt-8 text-center">
+        <p class="text-gray-400">© 2025 GoBuddy. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+
+</html>

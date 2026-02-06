@@ -1,0 +1,75 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<style>
+    :root {
+        --glass: rgba(255, 255, 255, 0.08);
+    }
+
+    .glass {
+        background: var(--glass);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 1rem;
+    }
+
+    .title {
+        font-weight: 700;
+        font-size: 1.2rem;
+    }
+
+    .small {
+        color: #cbd5e1;
+        font-size: .9rem;
+    }
+
+    .btn {
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        padding: .6rem 1rem;
+        border-radius: 10px;
+        color: #fff;
+        font-weight: 600;
+    }
+</style>
+
+<div class="glass mb-6">
+    <div style="margin-bottom:1.5rem">
+        <h1 class="title" style="font-size:1.8rem;margin-bottom:0.5rem">Explore Destinations</h1>
+        <p class="small">Discover breathtaking places for your next adventure.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:1.5rem">
+        {% for d in destinations %}
+        <div class="glass" style="padding:0;overflow:hidden;transition:transform 0.3s ease;">
+            <div style="position:relative;height:160px;">
+                {% if d.image %}
+                <img src="{{ d.image.url }}" style="width:100%;height:100%;object-fit:cover;">
+                {% else %}
+                <div style="width:100%;height:100%;background:linear-gradient(to bottom right, #3b82f6, #9333ea);">
+                </div>
+                {% endif %}
+                <div
+                    style="position:absolute;bottom:0;left:0;padding:0.75rem;background:linear-gradient(to top, rgba(0,0,0,0.8), transparent);width:100%">
+                    <h3 style="font-weight:700;color:white;font-size:1.1rem">{{ d.name }}</h3>
+                    <p style="color:rgba(255,255,255,0.9);font-size:0.85rem">{{ d.country }}</p>
+                </div>
+            </div>
+            <div style="padding:1rem;">
+                <p class="small" style="margin-bottom:0.75rem">{{ d.description|truncatechars:80 }}</p>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span style="font-weight:700;color:#60a5fa">₹{{ d.price_per_day|floatformat:0 }}/day</span>
+                    <a href="{% url 'customers:destination_detail' d.url_name %}"
+                        style="color:#60a5fa;font-size:0.9rem;font-weight:600">Explore</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center text-gray-400 py-10">
+            <i class="fas fa-map-marked-alt text-4xl mb-4 opacity-50"></i>
+            <p>No destinations found at the moment.</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

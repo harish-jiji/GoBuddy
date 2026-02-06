@@ -1,0 +1,649 @@
+{% extends 'customer/base.html' %}
+{% block content %}
+  <style>
+    /* Payment Specific Styles */
+    * {
+      font-family: 'Inter', sans-serif;
+    }
+    
+    .payment-gradient-bg {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    .payment-glass-effect {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    
+    .payment-card-hover {
+      transition: all 0.3s ease;
+    }
+    
+    .payment-card-hover:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .payment-fade-in {
+      animation: paymentFadeIn 0.6s ease-in;
+    }
+    
+    @keyframes paymentFadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .payment-slide-in {
+      animation: paymentSlideIn 0.5s ease-out;
+    }
+    
+    @keyframes paymentSlideIn {
+      from { transform: translateX(-100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .payment-bounce-in {
+      animation: paymentBounceIn 0.8s ease-out;
+    }
+    
+    @keyframes paymentBounceIn {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .payment-loading {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255,255,255,.3);
+      border-radius: 50%;
+      border-top-color: #fff;
+      animation: paymentSpin 1s ease-in-out infinite;
+    }
+    
+    @keyframes paymentSpin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .payment-ripple {
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .payment-ripple::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 0;
+      height: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      transform: translate(-50%, -50%);
+      transition: width 0.6s, height 0.6s;
+    }
+    
+    .payment-ripple:active::before {
+      width: 300px;
+      height: 300px;
+    }
+  </style>
+<!-- Enhanced Payment Content -->
+<div class="space-y-8">
+  <!-- Header Section -->
+  <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+    <div>
+      <h1 class="text-4xl font-bold mb-2">Payment & Billing</h1>
+      <p class="text-gray-400 text-lg">Manage your payments, invoices, and billing information</p>
+    </div>
+    <div class="flex flex-col sm:flex-row gap-4">
+      <button class="px-6 py-3 payment-glass-effect rounded-xl hover:bg-white/10 transition-colors flex items-center space-x-2">
+        <i class="fas fa-download"></i>
+        <span>Export Data</span>
+      </button>
+      <button class="px-6 py-3 payment-gradient-bg rounded-xl hover:opacity-90 transition-opacity flex items-center space-x-2 payment-ripple">
+        <i class="fas fa-plus"></i>
+        <span>Add Payment Method</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Enhanced Stats Section -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="payment-glass-effect p-6 rounded-xl payment-card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-300">Total Spent</p>
+          <p class="text-3xl font-bold text-blue-400">₹{{ total_spent|floatformat:0 }}</p>
+          <p class="text-xs text-green-400 flex items-center mt-1">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +12% from last year
+          </p>
+        </div>
+        <div class="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center">
+          <i class="fas fa-rupee-sign text-blue-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    <div class="payment-glass-effect p-6 rounded-xl payment-card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-300">Pending Payments</p>
+          <p class="text-3xl font-bold text-yellow-400">₹{{ pending_total|floatformat:0 }}</p>
+          <p class="text-xs text-gray-400 mt-1">{{ bookings|length }} bookings</p>
+        </div>
+        <div class="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center">
+          <i class="fas fa-clock text-yellow-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    <div class="payment-glass-effect p-6 rounded-xl payment-card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-300">This Month</p>
+          <p class="text-3xl font-bold text-green-400">₹{{ month_total|floatformat:0 }}</p>
+          <p class="text-xs text-green-400 flex items-center mt-1">
+            <i class="fas fa-arrow-up mr-1"></i>
+            +8% from last month
+          </p>
+        </div>
+        <div class="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center">
+          <i class="fas fa-calendar text-green-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+    <div class="payment-glass-effect p-6 rounded-xl payment-card-hover">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm text-gray-300">Last Payment</p>
+          <p class="text-3xl font-bold text-purple-400">₹{% if last_payment %}{{ last_payment.amount|floatformat:0 }}{% else %}0{% endif %}</p>
+          <p class="text-xs text-gray-400 mt-1">{% if last_payment %}{{ last_payment.booked_at|date:"M d, Y" }}{% endif %}</p>
+        </div>
+        <div class="w-12 h-12 bg-purple-500/20 rounded-xl flex items-center justify-center">
+          <i class="fas fa-credit-card text-purple-400 text-xl"></i>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Methods Section -->
+  <div class="payment-glass-effect p-6 rounded-xl">
+    <h2 class="text-2xl font-bold mb-6">Payment Methods</h2>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="payment-card-hover p-6 rounded-xl payment-gradient-bg">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <i class="fas fa-credit-card text-2xl"></i>
+            <div>
+              <p class="font-semibold">Primary Card</p>
+              <p class="text-sm text-white/80">**** **** **** 1234</p>
+            </div>
+          </div>
+          <button class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+            Edit
+          </button>
+        </div>
+        <p class="text-sm text-white/80">Expires 12/26</p>
+      </div>
+      
+      <div class="payment-card-hover p-6 rounded-xl payment-glass-effect">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <i class="fas fa-credit-card text-2xl text-gray-400"></i>
+            <div>
+              <p class="font-semibold">Backup Card</p>
+              <p class="text-sm text-gray-400">**** **** **** 5678</p>
+            </div>
+          </div>
+          <button class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+            Edit
+          </button>
+        </div>
+        <p class="text-sm text-gray-400">Expires 08/25</p>
+      </div>
+      
+      <div class="payment-card-hover p-6 rounded-xl payment-glass-effect">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center space-x-3">
+            <i class="fab fa-google-pay text-2xl text-blue-400"></i>
+            <div>
+              <p class="font-semibold">Google Pay</p>
+              <p class="text-sm text-gray-400">sarah.johnson@gmail.com</p>
+            </div>
+          </div>
+          <button class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+            Edit
+          </button>
+        </div>
+        <p class="text-sm text-gray-400">Connected</p>
+      </div>
+    </div>
+    </div>
+
+  <!-- Enhanced Invoices Section -->
+  <div class="payment-glass-effect p-6 rounded-xl">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+      <h2 class="text-2xl font-bold">Recent Transactions</h2>
+      <div class="flex flex-col sm:flex-row gap-4">
+        <div class="relative">
+          <input type="text" placeholder="Search transactions..." 
+                 class="w-64 px-4 py-3 pl-10 rounded-xl payment-glass-effect text-white placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                 id="searchTransactions">
+          <i class="fas fa-search absolute left-3 top-4 text-gray-400"></i>
+    </div>
+        <select id="statusFilter" class="px-4 py-3 rounded-xl payment-glass-effect text-white focus:outline-none focus:ring-2 focus:ring-blue-500">
+          <option value="all">All Status</option>
+          <option value="completed">Completed</option>
+          <option value="pending">Pending</option>
+          <option value="failed">Failed</option>
+        </select>
+    </div>
+  </div>
+
+    <!-- Mobile Cards View -->
+    <div id="mobileCards" class="space-y-4 md:hidden">
+      <!-- Mobile cards will be rendered here -->
+    </div>
+
+    <!-- Desktop Table View -->
+    <div id="invoiceTable" class="hidden md:block overflow-x-auto">
+      <table class="w-full">
+      <thead>
+          <tr class="border-b border-white/10">
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Transaction ID</th>
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Date</th>
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Destination</th>
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Amount</th>
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Status</th>
+            <th class="text-left py-4 px-2 font-semibold text-gray-300">Actions</th>
+        </tr>
+      </thead>
+        <tbody id="transactionsTableBody">
+          {% for b in bookings %}
+          <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+            <td class="py-4 px-2">
+              <span class="font-mono text-sm text-gray-300">BK{{ b.id }}</span>
+            </td>
+            <td class="py-4 px-2 text-gray-300">{{ b.booked_at|date:"M d, Y" }}</td>
+            <td class="py-4 px-2 font-medium">{% if b.trip %}{{ b.trip.destination }}{% else %}-{% endif %}</td>
+            <td class="py-4 px-2 font-bold text-green-400">₹{{ b.amount|floatformat:0 }}</td>
+            <td class="py-4 px-2">
+              <span class="px-3 py-1 bg-white/10 text-gray-200 rounded-full text-sm font-semibold flex items-center w-fit">
+                {{ b.get_status_display }}
+              </span>
+            </td>
+            <td class="py-4 px-2">
+              <div class="flex space-x-2">
+                <button class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+                  <i class="fas fa-eye mr-1"></i>View
+                </button>
+                <button class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+                  <i class="fas fa-download mr-1"></i>Download
+                </button>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="py-6 text-center text-gray-400">No transactions found</td>
+          </tr>
+          {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  </div>
+
+  <!-- Enhanced Payment History Chart -->
+  <div class="payment-glass-effect p-6 rounded-xl">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 mb-6">
+      <div>
+        <h2 class="text-2xl font-bold mb-2">Spending Analytics</h2>
+        <p class="text-gray-400">Track your spending patterns and trends</p>
+      </div>
+      <div class="flex gap-2">
+        <button class="period-btn active px-4 py-2 payment-gradient-bg rounded-lg text-sm" data-period="6m">6M</button>
+        <button class="period-btn px-4 py-2 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors" data-period="12m">12M</button>
+        <button class="period-btn px-4 py-2 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors" data-period="2y">2Y</button>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="text-center">
+        <p class="text-3xl font-bold text-blue-400">₹2.4L</p>
+        <p class="text-sm text-gray-400">Total Spent</p>
+      </div>
+      <div class="text-center">
+        <p class="text-3xl font-bold text-green-400">+12%</p>
+        <p class="text-sm text-gray-400">vs Last Year</p>
+      </div>
+      <div class="text-center">
+        <p class="text-3xl font-bold text-purple-400">₹20K</p>
+        <p class="text-sm text-gray-400">Avg per Month</p>
+      </div>
+    </div>
+
+    <!-- Chart Container -->
+    <div class="relative">
+      <div id="paymentChart" class="h-64 flex items-end justify-between space-x-2">
+        <!-- Chart bars will be rendered here -->
+      </div>
+      <div id="chartTooltip" class="absolute bg-black/80 text-white px-3 py-2 rounded-lg text-sm pointer-events-none opacity-0 transition-opacity">
+        <!-- Tooltip content -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div class="payment-card-hover payment-glass-effect p-6 rounded-xl text-center">
+      <div class="w-12 h-12 payment-gradient-bg rounded-xl flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-download text-white text-xl"></i>
+      </div>
+      <h3 class="font-semibold mb-2">Download Invoice</h3>
+      <p class="text-sm text-gray-400 mb-4">Get your latest invoice</p>
+      <button class="px-4 py-2 payment-gradient-bg rounded-lg text-sm hover:opacity-90 transition-opacity">
+        Download
+      </button>
+    </div>
+    
+    <div class="payment-card-hover payment-glass-effect p-6 rounded-xl text-center">
+      <div class="w-12 h-12 payment-gradient-bg rounded-xl flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-plus text-white text-xl"></i>
+      </div>
+      <h3 class="font-semibold mb-2">Add Payment</h3>
+      <p class="text-sm text-gray-400 mb-4">Make a new payment</p>
+      <button class="px-4 py-2 payment-gradient-bg rounded-lg text-sm hover:opacity-90 transition-opacity">
+        Add Payment
+      </button>
+  </div>
+
+    <div class="payment-card-hover payment-glass-effect p-6 rounded-xl text-center">
+      <div class="w-12 h-12 payment-gradient-bg rounded-xl flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-chart-bar text-white text-xl"></i>
+      </div>
+      <h3 class="font-semibold mb-2">View Reports</h3>
+      <p class="text-sm text-gray-400 mb-4">Detailed spending reports</p>
+      <button class="px-4 py-2 payment-gradient-bg rounded-lg text-sm hover:opacity-90 transition-opacity">
+        View Reports
+      </button>
+    </div>
+    
+    <div class="payment-card-hover payment-glass-effect p-6 rounded-xl text-center">
+      <div class="w-12 h-12 payment-gradient-bg rounded-xl flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-cog text-white text-xl"></i>
+      </div>
+      <h3 class="font-semibold mb-2">Settings</h3>
+      <p class="text-sm text-gray-400 mb-4">Payment preferences</p>
+      <button class="px-4 py-2 payment-gradient-bg rounded-lg text-sm hover:opacity-90 transition-opacity">
+        Settings
+      </button>
+    </div>
+    </div>
+  </div>
+
+  <script>
+  // Payment specific JavaScript
+  // Use server-rendered bookings list instead of dummy data
+  const sampleTransactions = [];
+
+  const chartData = {
+    '6m': [15000, 18000, 22000, 25000, 20000, 45000],
+    '12m': [12000, 15000, 18000, 22000, 25000, 20000, 45000, 35000, 28000, 18000, 25000, 30000],
+    '2y': [80000, 95000, 110000, 125000, 140000, 160000, 180000, 200000, 220000, 240000, 260000, 280000, 300000, 320000, 340000, 360000, 380000, 400000, 420000, 440000, 460000, 480000, 500000, 520000]
+  };
+
+  let currentPeriod = '6m';
+  let searchQuery = '';
+  let statusFilter = 'all';
+
+  function formatINR(amount) {
+      return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+      minimumFractionDigits: 0
+      }).format(amount);
+  }
+
+  function getStatusInfo(status) {
+    const statusMap = {
+      completed: { color: 'text-green-400', bg: 'bg-green-500/20', icon: 'fas fa-check-circle', text: 'Completed' },
+      pending: { color: 'text-yellow-400', bg: 'bg-yellow-500/20', icon: 'fas fa-clock', text: 'Pending' },
+      failed: { color: 'text-red-400', bg: 'bg-red-500/20', icon: 'fas fa-times-circle', text: 'Failed' }
+    };
+    return statusMap[status] || statusMap.completed;
+  }
+
+  function renderTransactionRow(transaction) {
+    const statusInfo = getStatusInfo(transaction.status);
+    const date = new Date(transaction.date).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+
+    return `
+      <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+        <td class="py-4 px-2">
+          <span class="font-mono text-sm text-gray-300">${transaction.id}</span>
+        </td>
+        <td class="py-4 px-2 text-gray-300">${date}</td>
+        <td class="py-4 px-2 font-medium">${transaction.destination}</td>
+        <td class="py-4 px-2 font-bold text-green-400">${formatINR(transaction.amount)}</td>
+        <td class="py-4 px-2">
+          <span class="px-3 py-1 ${statusInfo.bg} ${statusInfo.color} rounded-full text-sm font-semibold flex items-center w-fit">
+            <i class="${statusInfo.icon} mr-2"></i>
+            ${statusInfo.text}
+          </span>
+              </td>
+        <td class="py-4 px-2">
+          <div class="flex space-x-2">
+            <button onclick="viewTransaction('${transaction.id}')" 
+                    class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+              <i class="fas fa-eye mr-1"></i>View
+            </button>
+            <button onclick="downloadInvoice('${transaction.id}')" 
+                    class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+              <i class="fas fa-download mr-1"></i>Download
+            </button>
+          </div>
+              </td>
+            </tr>
+          `;
+  }
+
+  function renderMobileCard(transaction) {
+    const statusInfo = getStatusInfo(transaction.status);
+    const date = new Date(transaction.date).toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
+    });
+
+    return `
+      <div class="payment-card-hover payment-glass-effect p-4 rounded-xl">
+        <div class="flex items-center justify-between mb-3">
+          <div>
+            <h3 class="font-semibold">${transaction.destination}</h3>
+            <p class="text-sm text-gray-400">${transaction.id} • ${date}</p>
+          </div>
+          <span class="px-3 py-1 ${statusInfo.bg} ${statusInfo.color} rounded-full text-sm font-semibold">
+            ${statusInfo.text}
+          </span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span class="text-xl font-bold text-green-400">${formatINR(transaction.amount)}</span>
+          <div class="flex space-x-2">
+            <button onclick="viewTransaction('${transaction.id}')" 
+                    class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+              <i class="fas fa-eye mr-1"></i>View
+            </button>
+            <button onclick="downloadInvoice('${transaction.id}')" 
+                    class="px-3 py-1 payment-glass-effect rounded-lg text-sm hover:bg-white/10 transition-colors">
+              <i class="fas fa-download mr-1"></i>Download
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderTransactions() {
+    const rows = Array.from(document.querySelectorAll('#transactionsTableBody tr'));
+    const transactions = rows.map(row => ({
+      id: row.querySelector('td:nth-child(1) span')?.textContent || '',
+      destination: row.querySelector('td:nth-child(3)')?.textContent || '',
+      amount: parseInt((row.querySelector('td:nth-child(4)')?.textContent || '0').replace(/[^0-9]/g, '')) || 0,
+      status: (row.querySelector('td:nth-child(5) span')?.textContent || '').toLowerCase()
+    }));
+
+    const filtered = transactions.filter(transaction => {
+      const matchesSearch = searchQuery === '' || 
+        transaction.destination.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        transaction.id.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
+      return matchesSearch && matchesStatus;
+    });
+
+    // Render desktop table
+    const tableBody = document.getElementById('transactionsTableBody');
+    tableBody.innerHTML = filtered.map(transaction => renderTransactionRow(transaction)).join('');
+
+    // Render mobile cards
+    const mobileCards = document.getElementById('mobileCards');
+    mobileCards.innerHTML = filtered.map(transaction => renderMobileCard(transaction)).join('');
+  }
+
+  function initChart() {
+    const chartContainer = document.getElementById('paymentChart');
+    const data = chartData[currentPeriod];
+    const maxValue = Math.max(...data);
+    
+    chartContainer.innerHTML = data.map((value, index) => {
+      const height = (value / maxValue) * 100;
+      const month = new Date(2024, index).toLocaleDateString('en-US', { month: 'short' });
+      
+      return `
+        <div class="flex flex-col items-center flex-1 group">
+          <div class="w-full bg-gradient-to-t from-blue-500 to-purple-500 rounded-t-lg transition-all duration-300 hover:from-blue-400 hover:to-purple-400 cursor-pointer"
+               style="height: ${height}%"
+               data-value="${value}"
+               data-month="${month}">
+          </div>
+          <span class="text-xs text-gray-400 mt-2">${month}</span>
+        </div>
+      `;
+    }).join('');
+
+    // Add hover effects
+    chartContainer.querySelectorAll('[data-value]').forEach(bar => {
+      bar.addEventListener('mouseenter', (e) => {
+        const tooltip = document.getElementById('chartTooltip');
+        tooltip.innerHTML = `
+          <div class="font-semibold">${e.target.dataset.month}</div>
+          <div class="text-green-400">${formatINR(parseInt(e.target.dataset.value))}</div>
+        `;
+        tooltip.style.opacity = '1';
+        tooltip.style.left = e.target.offsetLeft + 'px';
+        tooltip.style.bottom = '100%';
+      });
+
+      bar.addEventListener('mouseleave', () => {
+        const tooltip = document.getElementById('chartTooltip');
+        tooltip.style.opacity = '0';
+      });
+    });
+  }
+
+  function initPeriodFilters() {
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.period-btn').forEach(b => {
+          b.classList.remove('active', 'payment-gradient-bg');
+          b.classList.add('payment-glass-effect');
+        });
+        btn.classList.add('active', 'payment-gradient-bg');
+        btn.classList.remove('payment-glass-effect');
+        currentPeriod = btn.dataset.period;
+        initChart();
+      });
+    });
+  }
+
+  function viewTransaction(transactionId) {
+    showNotification(`Viewing transaction ${transactionId}`, 'info');
+  }
+
+  function downloadInvoice(transactionId) {
+    showNotification(`Downloading invoice for ${transactionId}`, 'success');
+  }
+
+  // Event listeners
+  document.getElementById('searchTransactions').addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    renderTransactions();
+  });
+
+  document.getElementById('statusFilter').addEventListener('change', (e) => {
+    statusFilter = e.target.value;
+    renderTransactions();
+  });
+
+  // Notification system for payments
+  function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `fixed top-20 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 transform translate-x-full`;
+    
+    const colors = {
+      info: 'bg-blue-500',
+      success: 'bg-green-500',
+      warning: 'bg-yellow-500',
+      error: 'bg-red-500'
+    };
+    
+    notification.className += ` ${colors[type]} text-white`;
+    notification.innerHTML = `
+      <div class="flex items-center space-x-2">
+        <i class="fas fa-${type === 'info' ? 'info-circle' : type === 'success' ? 'check-circle' : type === 'warning' ? 'exclamation-triangle' : 'times-circle'}"></i>
+        <span>${message}</span>
+        <button onclick="this.parentElement.parentElement.remove()" class="ml-2 text-white hover:text-gray-200">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Animate in
+    setTimeout(() => {
+      notification.classList.remove('translate-x-full');
+    }, 100);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+      notification.classList.add('translate-x-full');
+      setTimeout(() => notification.remove(), 300);
+    }, 3000);
+  }
+
+  // Initialize payments page
+  document.addEventListener('DOMContentLoaded', () => {
+    renderTransactions();
+    initChart();
+    initPeriodFilters();
+    
+    // Add fade-in animation to all cards
+    setTimeout(() => {
+      document.querySelectorAll('.payment-card-hover').forEach((card, index) => {
+        setTimeout(() => {
+          card.classList.add('payment-fade-in');
+        }, index * 100);
+      });
+    }, 100);
+  });
+  </script>
+
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<!-- ===================== STYLES ===================== -->
+<style>
+    * { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(255,255,255,0.1); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2);}
+    .gradient { background: linear-gradient(135deg,#667eea,#764ba2); }
+    .hover-lift { transition: .3s; }
+    .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 10px 25px rgba(0,0,0,.3); }
+</style>
+
+<div class="space-y-10">
+
+    <!-- ===================== HEADER ===================== -->
+    <div class="glass p-6 rounded-xl">
+        <h1 class="text-3xl font-bold mb-2">Inbox</h1>
+        <p class="text-gray-300">Your latest updates and travel notifications</p>
+    </div>
+
+    <!-- ===================== STATS ===================== -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+        <div class="glass p-5 rounded-xl hover-lift">
+            <p class="text-sm text-gray-300">Total Messages</p>
+            <p class="text-3xl font-bold text-blue-400">{{ total_messages }}</p>
+        </div>
+
+        <div class="glass p-5 rounded-xl hover-lift">
+            <p class="text-sm text-gray-300">Unread</p>
+            <p class="text-3xl font-bold text-yellow-400">{{ unread_count }}</p>
+        </div>
+
+        <div class="glass p-5 rounded-xl hover-lift">
+            <p class="text-sm text-gray-300">Booking Updates</p>
+            <p class="text-3xl font-bold text-green-400">{{ bookings_count }}</p>
+        </div>
+
+        <div class="glass p-5 rounded-xl hover-lift">
+            <p class="text-sm text-gray-300">Offers</p>
+            <p class="text-3xl font-bold text-purple-400">{{ offers_count }}</p>
+        </div>
+
+    </div>
+
+    <!-- ===================== FILTER TABS (DJANGO FILTER) ===================== -->
+    <div class="glass p-4 rounded-xl">
+        <div class="flex flex-wrap gap-3">
+
+            <a href="?filter=all"
+               class="px-5 py-2 rounded-lg {% if filter == 'all' %} gradient {% else %} bg-white/10 {% endif %}">
+                All ({{ total_messages }})
+            </a>
+
+            <a href="?filter=bookings"
+               class="px-5 py-2 rounded-lg {% if filter == 'bookings' %} gradient {% else %} bg-white/10 {% endif %}">
+                Bookings ({{ bookings_count }})
+            </a>
+
+            <a href="?filter=payments"
+               class="px-5 py-2 rounded-lg {% if filter == 'payments' %} gradient {% else %} bg-white/10 {% endif %}">
+                Payments ({{ payments_count }})
+            </a>
+
+            <a href="?filter=offers"
+               class="px-5 py-2 rounded-lg {% if filter == 'offers' %} gradient {% else %} bg-white/10 {% endif %}">
+                Offers ({{ offers_count }})
+            </a>
+
+            <a href="?filter=system"
+               class="px-5 py-2 rounded-lg {% if filter == 'system' %} gradient {% else %} bg-white/10 {% endif %}">
+                System ({{ system_count }})
+            </a>
+
+        </div>
+    </div>
+
+    <!-- ===================== SEARCH BAR (FRONTEND ONLY) ===================== -->
+    <div class="relative">
+        <input id="searchBox" type="text"
+               placeholder="Search messages..."
+               class="w-full px-4 py-3 pl-10 rounded-xl glass text-white focus:ring-2 focus:ring-indigo-500">
+        <i class="fas fa-search text-gray-300 absolute top-3 left-3"></i>
+    </div>
+
+    <!-- ===================== MESSAGES LIST ===================== -->
+    <div id="messagesContainer" class="space-y-4">
+
+        {% for m in messages %}
+        <div class="glass p-6 rounded-xl hover-lift message-card"
+             data-text="{{ m.subject }} {{ m.body }} {{ m.get_category_display }}">
+            
+            <div class="flex items-start space-x-4">
+                
+                <!-- Icon -->
+                <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/10">
+                    <i class="fas fa-envelope text-blue-400 text-xl"></i>
+                </div>
+
+                <!-- Message content -->
+                <div class="flex-1">
+                    <h3 class="text-lg font-semibold {% if not m.is_read %} text-white {% endif %}">
+                        {{ m.subject }}
+                    </h3>
+                    <p class="text-gray-300 mb-2">{{ m.body }}</p>
+                    <p class="text-gray-500 text-sm">
+                        <i class="fas fa-clock"></i> {{ m.created_at|date:"M d, Y H:i" }}
+                        • <span class="px-2 py-1 bg-white/10 rounded-full text-xs">{{ m.get_category_display }}</span>
+                    </p>
+                </div>
+
+                <!-- Status -->
+                {% if not m.is_read %}
+                <span class="px-3 py-1 bg-blue-600 text-sm rounded-lg">Unread</span>
+                {% endif %}
+            </div>
+
+        </div>
+        {% empty %}
+        <div class="glass p-10 text-center rounded-xl">
+            <div class="text-5xl mb-4">📭</div>
+            <p class="text-xl font-bold">Your inbox is empty</p>
+            <p class="text-gray-400">You're all caught up!</p>
+        </div>
+        {% endfor %}
+
+    </div>
+
+</div>
+
+<!-- ===================== FRONTEND SEARCH FILTER ===================== -->
+<script>
+document.getElementById("searchBox").addEventListener("input", function () {
+    let query = this.value.toLowerCase();
+    document.querySelectorAll(".message-card").forEach(card => {
+        card.style.display = card.dataset.text.toLowerCase().includes(query) ? "block" : "none";
+    });
+});
+</script>
+
+{% endblock %}

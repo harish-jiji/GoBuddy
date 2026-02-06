@@ -1,0 +1,59 @@
+{% extends 'index.html' %} {% block content %}
+<style>
+    .glass-effect {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .card-hover {
+        transition: all 0.3s ease;
+    }
+
+    .card-hover:hover {
+        transform: translateY(-5px);
+    }
+</style>
+
+<div class="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <div class="text-center mb-16">
+            <h2 class="text-5xl font-bold text-white mb-4">
+                All <span
+                    class="bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">Destinations</span>
+            </h2>
+            <p class="text-xl text-gray-300 max-w-3xl mx-auto">Explore our collection of breathtaking locations.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {% for d in destinations %}
+            <div class="glass-effect rounded-2xl overflow-hidden card-hover group">
+                <div class="relative h-64">
+                    {% if d.image %}
+                    <img src="{{ d.image.url }}" class="absolute inset-0 w-full h-full object-cover" />
+                    {% else %}
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-500 to-purple-600"></div>
+                    {% endif %}
+                    <div class="absolute bottom-4 left-4">
+                        <h3 class="text-2xl font-bold text-white">{{ d.name }}</h3>
+                        <p class="text-white/90">{{ d.country }}</p>
+                    </div>
+                </div>
+                <div class="p-6">
+                    <p class="text-gray-300 mb-4">{{ d.description|truncatechars:100 }}</p>
+                    <div class="flex items-center justify-between">
+                        <span class="text-lg font-bold text-blue-400">From ₹{{ d.price_per_day }}</span>
+                        <a href="{% url 'core:destination_detail' d.url_name %}"
+                            class="text-blue-400 hover:underline">Explore</a>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="col-span-full text-center text-gray-400">
+                <p class="text-xl">No destinations found at the moment.</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
