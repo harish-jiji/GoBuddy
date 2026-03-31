@@ -20,4 +20,9 @@ urlpatterns = [
     path('signin/', views.signin, name='signin'),
     path('signup/', views.signup, name='signup'),
     path('logout/', views.signout, name='logout'),
+
+    # Password Recovery (Security Questions)
+    path('forgot-password/', views.forgot_password, name='forgot_password'),
+    path('verify-questions/', views.verify_security_questions, name='verify_security_questions'),
+    path('reset-password/', views.reset_password, name='reset_password'),
 ]

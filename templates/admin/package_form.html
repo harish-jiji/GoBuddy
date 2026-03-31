@@ -1,10 +1,16 @@
 {% extends 'admin/base_admin.html' %}
 
-
 {% block title %}{% if object %}Edit Package{% else %}Add Package{% endif %}{% endblock %}
 {% block header_title %}{% if object %}Edit Package{% else %}New Package{% endif %}{% endblock %}
 
 {% block content %}
+
+<!-- Leaflet & Routing -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
 
 <style>
     * {
@@ -12,27 +18,15 @@
     }
 
     .planner-container {
-        background-color: #0f172a;
-        color: white;
+        background-color: #f9fafb;
+        color: #1f2937;
         border-radius: 1rem;
         padding-bottom: 10rem;
     }
 
-    .glass {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .gradient {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-    }
-
-    .selected-destination {
-        border: 2px solid #667eea !important;
-        box-shadow: 0 0 20px rgba(102, 126, 234, .5);
-    }
+    .glass { background: #ffffff; border: 1px solid #e5e7eb; border-radius: 1rem; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+    .gradient { background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); }
+    .selected-destination { border: 2px solid #3b82f6 !important; background: rgba(59, 130, 246, 0.05) !important; }
 
     .destination-card {
         transition: .3s
@@ -41,15 +35,36 @@
     .destination-card:hover {
         transform: translateY(-4px);
     }
+
+    #map { height: 400px; border-radius: 1rem; z-index: 10; border: 1px solid #e5e7eb; }
+    .leaflet-routing-container { display: none !important; }
+    .timeline-dot::before { content: ''; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 12px; height: 12px; border-radius: 50%; background: #3b82f6; box-shadow: 0 0 10px rgba(59, 130, 246, 0.5); }
+    input, select, textarea { color: #374151; background-color: #ffffff !important; border: 1px solid #d1d5db !important; }
+    input:focus, select:focus { border-color: #3b82f6 !important; box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+    .text-white { color: #1f2937 !important; }
+    .text-gray-400 { color: #6b7280 !important; }
+    .bg-black\/20 { background-color: #f3f4f6 !important; }
+    .border-white\/10 { border-color: #e5e7eb !important; }
+    .timeline-connector { background-color: #e5e7eb !important; }
+    h1, h2, h3, h4 { color: #111827 !important; }
+
+    .quick-access-item {
+        cursor: pointer;
+        transition: 0.2s;
+    }
+
+    .quick-access-item:hover {
+        background: rgba(0, 0, 0, 0.05);
+    }
 </style>
 
-<div class="planner-container max-w-6xl mx-auto">
+<div class="planner-container max-w-7xl mx-auto px-4">
 
     <form method="post" id="packageForm" onsubmit="saveItineraryJSON()">
         {% csrf_token %}
 
         {% if form.errors %}
-        <div class="bg-red-500/10 border border-red-500/50 text-red-500 p-4 rounded-xl mb-6">
+        <div class="bg-red-50 border border-red-200 text-red-600 p-4 rounded-xl mb-6">
             <h3 class="font-bold mb-2">Please correct the following errors:</h3>
             {{ form.non_field_errors }}
             <ul class="list-disc pl-5 text-sm">
@@ -67,194 +82,223 @@
         {% if object and object.itinerary %}
         {{ object.itinerary|json_script:"server-itinerary-data" }}
         {% endif %}
-        {% if object %}
+        
         <script id="server-destinations-data" type="application/json">
-                [
+            [
+            {% if object %}
                 {% for d in object.destinations.all %}
-                    {"id": {{ d.id }}, "name": "{{ d.name|escapejs }}"}{% if not forloop.last %},{% endif %}
+                    {"id": {{ d.id }}, "name": "{{ d.name|escapejs }}", "lat": {{ d.latitude|default:0 }}, "lng": {{ d.longitude|default:0 }}}{% if not forloop.last %},{% endif %}
                 {% endfor %}
-                ]
-            </script>
-        {% endif %}
-
+            {% endif %}
+            ]
+        </script>
 
         <!-- ========================================================== -->
         <!-- HEADER -->
         <!-- ========================================================== -->
         <div class="glass p-6 text-center mb-8 relative overflow-hidden">
-            <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
             <h1 class="text-3xl font-bold relative z-10">
                 {% if object %}Edit Package{% else %}Create New Package{% endif %}
             </h1>
         </div>
 
-        <!-- ========================================================== -->
-        <!-- BASIC INFO -->
-        <!-- ========================================================== -->
-        <div class="glass p-6 mb-8 border-l-4 border-blue-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            
+            <!-- LEFT PANEL: FORM INFO -->
+            <div class="lg:col-span-12">
+                <!-- ========================================================== -->
+                <!-- BASIC INFO -->
+                <!-- ========================================================== -->
+                <div class="glass p-6 mb-8 border-l-4 border-blue-500">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Package Name *</label>
-                    <input type="text" name="name" value="{{ form.name.value|default_if_none:'' }}"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Slug</label>
-                    <input type="text" name="url_name" value="{{ form.url_name.value|default_if_none:'' }}"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Category</label>
-                    <select name="category"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        <option value="">Select</option>
-                        {% for choice in form.category.field.choices %}
-                        <option value="{{ choice.0 }}" {% if form.category.value==choice.0 %}selected{% endif %}>
-                            {{ choice.1 }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <!-- ✅ PACKAGE FOR -->
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Package For</label>
-                    <select name="target_audience"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        <option value="">Select</option>
-                        {% for value, label in form.target_audience.field.choices %}
-                        <option value="{{ value }}" {% if form.target_audience.value==value %}selected{% endif %}>
-                            {{ label }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Total Price (₹)</label>
-                    <input type="number" name="total_cost" value="{{ form.total_cost.value|default_if_none:'' }}"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-                <!-- ✅ NEW FIELDS ADDED -->
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Accommodation Type</label>
-                    <select name="accommodation_type"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        {% for value, label in form.accommodation_type.field.choices %}
-                        <option value="{{ value }}" {% if form.accommodation_type.value==value %}selected{% endif %}>{{
-                            label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Transportation Mode</label>
-                    <select name="transportation_mode"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        {% for value, label in form.transportation_mode.field.choices %}
-                        <option value="{{ value }}" {% if form.transportation_mode.value==value %}selected{% endif %}>{{
-                            label }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Meals Plan</label>
-                    <select name="meals_plan"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        {% for value, label in form.meals_plan.field.choices %}
-                        <option value="{{ value }}" {% if form.meals_plan.value==value %}selected{% endif %}>{{ label }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ========================================================== -->
-        <!-- DESTINATIONS -->
-        <!-- ========================================================== -->
-        <div class="glass p-6 mb-8 border-l-4 border-blue-500">
-            <h3 class="text-xl font-bold mb-4">Select Destinations</h3>
-
-            <input type="hidden" name="destinations" id="destinationIdsInput">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for dest in all_destinations %}
-                <div class="glass destination-card cursor-pointer" data-id="{{ dest.id }}" data-name="{{ dest.name }}"
-                    onclick="toggleDestination(this)">
-                    <div class="relative h-32">
-                        {% if dest.image %}
-                        <img src="{{ dest.image.url }}" class="absolute inset-0 w-full h-full object-cover">
-                        {% endif %}
-                        <div class="absolute inset-0 bg-black/40"></div>
-                        <div class="absolute bottom-2 left-3">
-                            <h4 class="font-bold">{{ dest.name }}</h4>
-                            <p class="text-xs">{{ dest.get_state_display }}</p>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Package Name *</label>
+                            <input type="text" name="name" value="{{ form.name.value|default_if_none:'' }}"
+                                class="w-full px-4 py-3 rounded-xl">
                         </div>
-                        <div class="absolute top-2 right-2 destination-checkbox hidden">
-                            <i class="fas fa-check-circle text-blue-400 text-xl bg-white rounded-full"></i>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Slug</label>
+                            <input type="text" name="url_name" value="{{ form.url_name.value|default_if_none:'' }}"
+                                class="w-full px-4 py-3 rounded-xl">
                         </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Category</label>
+                            <select name="category"
+                                class="w-full px-4 py-3 rounded-xl">
+                                <option value="">Select</option>
+                                {% for choice in form.category.field.choices %}
+                                <option value="{{ choice.0 }}" {% if form.category.value == choice.0 %}selected{% endif %}>
+                                    {{ choice.1 }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Package For</label>
+                            <select name="target_audience"
+                                class="w-full px-4 py-3 rounded-xl">
+                                <option value="">Select</option>
+                                {% for value, label in form.target_audience.field.choices %}
+                                <option value="{{ value }}" {% if form.target_audience.value == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Total Price (₹)</label>
+                            <input type="number" name="total_cost" value="{{ form.total_cost.value|default_if_none:'' }}"
+                                class="w-full px-4 py-3 rounded-xl">
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Accommodation Type</label>
+                            <select name="accommodation_type"
+                                class="w-full px-4 py-3 rounded-xl">
+                                {% for value, label in form.accommodation_type.field.choices %}
+                                <option value="{{ value }}" {% if form.accommodation_type.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Transportation Mode</label>
+                            <select name="transportation_mode"
+                                class="w-full px-4 py-3 rounded-xl">
+                                {% for value, label in form.transportation_mode.field.choices %}
+                                <option value="{{ value }}" {% if form.transportation_mode.value == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Meals Plan</label>
+                            <select name="meals_plan"
+                                class="w-full px-4 py-3 rounded-xl">
+                                {% for value, label in form.meals_plan.field.choices %}
+                                <option value="{{ value }}" {% if form.meals_plan.value == value %}selected{% endif %}>{{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
                     </div>
                 </div>
-                {% endfor %}
+
+                <!-- ========================================================== -->
+                <!-- DESTINATIONS MAPPING & QUICK ACCESS -->
+                <!-- ========================================================== -->
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-8 mb-8">
+                    
+                    <!-- DESTINATIONS SELECTOR -->
+                    <div class="md:col-span-7">
+                        <div class="glass p-6 border-l-4 border-blue-500 h-full">
+                            <h3 class="text-xl font-bold mb-4">Select Destinations</h3>
+                            <input type="hidden" name="destinations" id="destinationIdsInput">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                                {% for dest in all_destinations %}
+                                <div class="glass destination-card cursor-pointer p-1.5 transition-all overflow-hidden relative group" data-id="{{ dest.id }}" data-name="{{ dest.name }}"
+                                    data-lat="{{ dest.latitude|default:0 }}" data-lng="{{ dest.longitude|default:0 }}">
+                                    <div class="relative h-28 rounded-xl overflow-hidden shadow-sm" onclick="toggleDestination(this)">
+                                        {% if dest.image %}
+                                        <img src="{{ dest.image.url }}" class="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                                        {% endif %}
+                                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+                                        <div class="absolute bottom-2 left-2 right-2">
+                                            <h4 class="font-bold text-xs text-white truncate">{{ dest.name }}</h4>
+                                            <p class="text-[9px] text-blue-200">{{ dest.get_state_display }}</p>
+                                        </div>
+                                        <div class="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                                            <div class="count-badge hidden bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-lg border border-white/20">
+                                                x1
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center justify-between mt-2 px-1">
+                                         <button type="button" onclick="changeDestinationCount(this.closest('.destination-card'), -1)" class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-lg hover:bg-red-50 hover:text-red-500 transition-colors">
+                                            <i class="fas fa-minus text-[10px]"></i>
+                                         </button>
+                                         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">Usage</span>
+                                         <button type="button" onclick="changeDestinationCount(this.closest('.destination-card'), 1)" class="w-7 h-7 flex items-center justify-center bg-gray-100 text-gray-600 rounded-lg hover:bg-blue-50 hover:text-blue-500 transition-colors">
+                                            <i class="fas fa-plus text-[10px]"></i>
+                                         </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- MAP & QUICK ACCESS -->
+                    <div class="md:col-span-5">
+                        <div class="glass p-6 border-l-4 border-pink-500 h-full">
+                            <h3 class="text-xl font-bold mb-4">Location Finder</h3>
+                            <div class="relative mb-4 flex gap-2">
+                                <input type="text" id="mapSearchInput" placeholder="Search any place in India..." 
+                                    class="flex-1 bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-pink-500 outline-none">
+                                <button type="button" onclick="searchOnMap()" class="bg-pink-600 text-white px-6 py-3 rounded-xl hover:bg-pink-700 transition shadow-lg shadow-pink-200">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="map" class="h-[432px] rounded-2xl shadow-inner border-2 border-dashed border-gray-100"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- ========================================================== -->
+                <!-- DURATION -->
+                <!-- ========================================================== -->
+                <div class="glass p-6 mb-8 border-l-4 border-purple-500">
+                    <h3 class="text-xl font-bold mb-4">Duration</h3>
+                    <div class="flex items-center gap-4">
+                        <button type="button" onclick="changeDays(-1)" class="glass px-4 py-2">−</button>
+                        <div class="text-3xl font-bold text-blue-600" id="daysDisplay">1</div>
+                        <button type="button" onclick="changeDays(1)" class="glass px-4 py-2">+</button>
+                    </div>
+                    <input type="hidden" name="duration_days" id="numberOfDaysInput"
+                        value="{{ form.duration_days.value|default_if_none:1 }}">
+                    <input type="hidden" name="duration_nights" id="durationNightsInput"
+                        value="{{ form.duration_nights.value|default_if_none:0 }}">
+                </div>
+
+                <!-- ========================================================== -->
+                <!-- ITINERARY -->
+                <!-- ========================================================== -->
+                <div id="daysContainer" class="space-y-12"></div>
+
+                <!-- ========================================================== -->
+                <!-- SETTINGS -->
+                <!-- ========================================================== -->
+                <div class="glass p-6 mb-8 border-l-4 border-gray-500">
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" name="is_active" {% if form.is_active.value %}checked{% endif %}>
+                        <span>Active</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" name="is_preplanned" {% if form.is_preplanned.value %}checked{% endif %}>
+                        <span>Preplanned</span>
+                    </label>
+                    <label class="flex items-center gap-3">
+                        <input type="checkbox" name="available_for_booking" {% if form.available_for_booking.value %}checked{% endif %}>
+                        <span>Available for Booking</span>
+                    </label>
+                </div>
             </div>
-        </div>
 
-        <!-- ========================================================== -->
-        <!-- DURATION -->
-        <!-- ========================================================== -->
-        <div class="glass p-6 mb-8 border-l-4 border-purple-500">
-            <h3 class="text-xl font-bold mb-4">Duration</h3>
-
-            <div class="flex items-center gap-4">
-                <button type="button" onclick="changeDays(-1)" class="glass px-4 py-2">−</button>
-                <div class="text-3xl font-bold text-blue-400" id="daysDisplay">1</div>
-                <button type="button" onclick="changeDays(1)" class="glass px-4 py-2">+</button>
-            </div>
-
-            <input type="hidden" name="duration_days" id="numberOfDaysInput"
-                value="{{ form.duration_days.value|default_if_none:1 }}">
-            <input type="hidden" name="duration_nights" id="durationNightsInput"
-                value="{{ form.duration_nights.value|default_if_none:0 }}">
-        </div>
-
-        <!-- ========================================================== -->
-        <!-- ITINERARY -->
-        <!-- ========================================================== -->
-        <div id="daysContainer" class="space-y-12"></div>
-
-        <!-- ========================================================== -->
-        <!-- SETTINGS -->
-        <!-- ========================================================== -->
-        <div class="glass p-6 mb-8 border-l-4 border-gray-500">
-            <label class="flex items-center gap-3">
-                <input type="checkbox" name="is_active" {% if form.is_active.value %}checked{% endif %}>
-                <span>Active</span>
-            </label>
-            <label class="flex items-center gap-3">
-                <input type="checkbox" name="is_preplanned" {% if form.is_preplanned.value %}checked{% endif %}>
-                <span>Preplanned</span>
-            </label>
-            <label class="flex items-center gap-3">
-                <input type="checkbox" name="available_for_booking" {% if form.available_for_booking.value %}checked{%
-                    endif %}>
-
-                <span>Available for Booking</span>
-            </label>
         </div>
 
         <!-- ========================================================== -->
         <!-- ACTIONS -->
         <!-- ========================================================== -->
-        <div class="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 p-4 flex justify-center gap-4 border-t">
+        <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur p-4 flex justify-center gap-4 border-t z-[1000]">
             <a href="{% url 'adminpanel:packages' %}" class="glass px-8 py-3 rounded-lg">Cancel</a>
-            <button class="gradient px-10 py-3 rounded-lg font-bold">Save Package</button>
+            <button class="gradient text-white px-10 py-3 rounded-lg font-bold">Save Package</button>
         </div>
 
     </form>
@@ -263,524 +307,454 @@
 <!-- HELPERS -->
 {{ destinations_data|json_script:"all-destinations-data" }}
 <script>
-    // Convert destinations to format expected by JS
-    let allDestinations = [];
-    try {
-        const destData = document.getElementById('all-destinations-data');
-        if (destData && destData.textContent) {
-            allDestinations = JSON.parse(destData.textContent);
-            if (!Array.isArray(allDestinations)) {
-                allDestinations = [];
-            }
-        }
-    } catch (error) {
-        console.error('Error parsing destinations:', error);
-        allDestinations = [];
-    }
-    const ALL_DESTINATIONS = allDestinations.map(d => ({
+    const destData = JSON.parse(document.getElementById('all-destinations-data').textContent);
+    const ALL_DESTINATIONS = destData.map(d => ({
         id: d.id || d.pk,
         name: d.name || '',
-        state: d.state || d.get_state_display || ''
+        state: d.state || d.get_state_display || '',
+        lat: parseFloat(d.latitude) || 0,
+        lng: parseFloat(d.longitude) || 0
     }));
-</script>
 
-<script>
-    // --- DATA INITIALIZATION ---
-    let TRIP_DESTINATIONS = []; // Will be populated from selected destinations
-    let TRIP_START_LOC = '';
-    let TRIP_DAYS = 1;
-    let SAVED_ITINERARY_RAW = [];
+    const indiaBounds = L.latLngBounds([6.554607, 68.111378], [35.674545, 97.395561]);
+    let map, routingControl;
+    let markers = {};
 
-    // Selected destinations array
+    function initMap() {
+        const indiaBounds = L.latLngBounds([6.4626999, 68.1097], [35.513327, 97.395358]);
+        map = L.map('map', {
+            center: [20.5937, 78.9629],
+            zoom: 5,
+            minZoom: 4,
+            maxBounds: indiaBounds,
+            maxBoundsViscosity: 1.0
+        });
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO',
+            subdomains: 'abcd',
+            maxZoom: 20
+        }).addTo(map);
+
+        routingControl = L.Routing.control({
+            waypoints: [],
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            show: false,
+            addWaypoints: false,
+            routeWhileDragging: false,
+            lineOptions: { styles: [{ color: '#2563eb', weight: 4, opacity: 0.8 }] }
+        }).addTo(map);
+
+        map.on('click', async function(e) {
+            const { lat, lng } = e.latlng;
+            if (!indiaBounds.contains(e.latlng)) { alert("Please select a location within India."); return; }
+            const name = await reverseGeocode(lat, lng);
+            if (name) addLocationFromMap(lat, lng, name);
+        });
+    }
+
+    async function reverseGeocode(lat, lng) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&countrycodes=in`);
+            const data = await res.json();
+            if (data.address && data.address.country_code !== 'in') {
+                alert("This location appears to be outside of India. Please select an Indian destination.");
+                return null;
+            }
+            
+            return data.display_name.split(',')[0] || "Unknown Location";
+        } catch (e) {
+            return "Unknown Location";
+        }
+    }
+
+    function flyToLocation(arg1, arg2) {
+        let lat, lng;
+        if (arg1 && typeof arg1 === 'object' && arg1.dataset) {
+            lat = parseFloat(arg1.dataset.lat);
+            lng = parseFloat(arg1.dataset.lng);
+        } else {
+            lat = arg1;
+            lng = arg2;
+        }
+        if (lat && lng && map) {
+            map.flyTo([lat, lng], 12);
+        }
+    }
+
+    function addLocationFromMap(lat, lng, name) {
+        const dayIdx = 0;
+        if (!itineraryData[dayIdx]) return;
+        
+        itineraryData[dayIdx].items.push({
+            item_type: 'location',
+            name: name,
+            lat: lat,
+            lng: lng,
+            destination_id: ''
+        });
+        
+        renderItinerary();
+        updateMapMarkers();
+    }
+
+    function updateMapMarkers() {
+        Object.values(markers).forEach(m => map.removeLayer(m));
+        markers = {};
+        const waypoints = [];
+
+        itineraryData.forEach((day, dIdx) => {
+            day.items.forEach((item, iIdx) => {
+                if (item.lat && item.lng) {
+                    const latlng = L.latLng(item.lat, item.lng);
+                    const m = L.marker(latlng).addTo(map).bindPopup(`<b>Day ${dIdx+1}</b>: ${item.name}`);
+                    markers[`${dIdx}-${iIdx}`] = m;
+                    waypoints.push(latlng);
+                }
+            });
+        });
+
+        if (routingControl) routingControl.setWaypoints(waypoints);
+    }
+
     let selectedDestinations = [];
-
     let itineraryData = [];
+    let TRIP_DAYS = 1;
 
-    // Get sub-type options based on main type
     function getSubTypeOptions(mainType) {
         const options = {
-            'travel': [
-                { value: 'car', label: 'Car/Taxi' },
-                { value: 'bus', label: 'Bus' },
-                { value: 'train', label: 'Train' },
-                { value: 'flight', label: 'Flight' },
-                { value: 'bike', label: 'Bike' },
-                { value: 'walk', label: 'Walk' }
-            ],
-            'food': [
-                { value: 'restaurant', label: 'Restaurant' },
-                { value: 'hotel_3star', label: '3 Star Hotel' },
-                { value: 'hotel_4star', label: '4 Star Hotel' },
-                { value: 'hotel_5star', label: '5 Star Hotel' },
-                { value: 'street_food', label: 'Street Food' },
-                { value: 'cafe', label: 'Cafe' }
-            ],
-            'accommodation': [
-                { value: 'hotel_3star', label: '3 Star Hotel' },
-                { value: 'hotel_4star', label: '4 Star Hotel' },
-                { value: 'hotel_5star', label: '5 Star Hotel' },
-                { value: 'resort', label: 'Resort' },
-                { value: 'homestay', label: 'Homestay' },
-                { value: 'villa', label: 'Private Villa' },
-                { value: 'hostel', label: 'Hostel' }
-            ],
-            'sightseeing': [
-                { value: 'monument', label: 'Monument' },
-                { value: 'temple', label: 'Temple' },
-                { value: 'museum', label: 'Museum' },
-                { value: 'park', label: 'Park' },
-                { value: 'beach', label: 'Beach' },
-                { value: 'viewpoint', label: 'Viewpoint' }
-            ],
-            'adventure': [
-                { value: 'trekking', label: 'Trekking' },
-                { value: 'water_sports', label: 'Water Sports' },
-                { value: 'paragliding', label: 'Paragliding' },
-                { value: 'rafting', label: 'Rafting' },
-                { value: 'bungee', label: 'Bungee Jumping' }
-            ],
-            'shopping': [
-                { value: 'market', label: 'Market' },
-                { value: 'mall', label: 'Mall' },
-                { value: 'handicraft', label: 'Handicraft Store' },
-                { value: 'souvenir', label: 'Souvenir Shop' }
-            ]
+            'travel': [{ value: 'car', label: 'Car/Taxi' }, { value: 'bus', label: 'Bus' }, { value: 'train', label: 'Train' }, { value: 'flight', label: 'Flight' }],
+            'food': [{ value: 'restaurant', label: 'Restaurant' }, { value: 'hotel_3star', label: 'Hotel Dining' }],
+            'accommodation': [{ value: 'hotel_3star', label: '3 Star' }, { value: 'hotel_5star', label: '5 Star' }, { value: 'resort', label: 'Resort' }],
+            'sightseeing': [{ value: 'monument', label: 'Monument' }, { value: 'temple', label: 'Temple' }, { value: 'park', label: 'Park' }]
         };
         return options[mainType] || [{ value: 'other', label: 'Other' }];
     }
 
-    // Destination selection handlers
-    function toggleDestination(el) {
-        const id = parseInt(el.dataset.id);
-        const name = el.dataset.name;
+    function changeDestinationCount(card, delta) {
+        const name = card.dataset.name;
+        const lat = parseFloat(card.dataset.lat);
+        const lng = parseFloat(card.dataset.lng);
+        const id = card.dataset.id;
 
-        // Check if already selected
-        const index = selectedDestinations.findIndex(d => d.id == id);
-        const checkbox = el.querySelector('.destination-checkbox');
-
-        if (index > -1) {
-            // Remove
-            selectedDestinations.splice(index, 1);
-            el.classList.remove('selected-destination');
-            if (checkbox) checkbox.classList.add('hidden');
+        if (delta > 0) {
+            // Add instance
+            if (!itineraryData[0].items) itineraryData[0].items = [];
+            itineraryData[0].items.push({ item_type: 'location', name: name, lat: lat, lng: lng });
+            flyToLocation(lat, lng);
         } else {
-            // Add
-            selectedDestinations.push({ id, name });
-            el.classList.add('selected-destination');
-            if (checkbox) checkbox.classList.remove('hidden');
+            // Remove one instance
+            for (let d = itineraryData.length - 1; d >= 0; d--) {
+                const idx = itineraryData[d].items.findLastIndex(i => i.item_type === 'location' && i.name === name);
+                if (idx > -1) {
+                    itineraryData[d].items.splice(idx, 1);
+                    break;
+                }
+            }
         }
-
-        // Update TRIP_DESTINATIONS for location dropdowns
-        TRIP_DESTINATIONS = selectedDestinations.map(d => {
-            return ALL_DESTINATIONS.find(ad => ad.id == d.id);
-        }).filter(d => d);
-
-        // Update destination IDs input
-        const destinationIdsInput = document.getElementById('destinationIdsInput');
-        if (destinationIdsInput) {
-            destinationIdsInput.value = selectedDestinations.map(d => d.id).join(',');
-        }
-
-        // Re-render itinerary to update location dropdowns
+        updateDestinationCounts();
         renderItinerary();
+    }
+
+    function toggleDestination(el) {
+        const name = el.dataset.name;
+        const lat = parseFloat(el.dataset.lat);
+        const lng = parseFloat(el.dataset.lng);
+        const isSelected = itineraryData.some(day => day.items.some(i => i.item_type === 'location' && i.name === name));
+
+        if (!isSelected) {
+            changeDestinationCount(el, 1);
+        } else {
+            // If already there, clicking it again might mean "Add more" or "Stay as is".
+            // Let's make it add another instance to follow the multi-select request.
+            changeDestinationCount(el, 1);
+        }
+    }
+
+    function updateDestinationCounts() {
+        const counts = {};
+        itineraryData.forEach(day => {
+            day.items.forEach(item => {
+                if (item.item_type === 'location') counts[item.name] = (counts[item.name] || 0) + 1;
+            });
+        });
+
+        document.querySelectorAll('.destination-card').forEach(card => {
+            const name = card.dataset.name;
+            const count = counts[name] || 0;
+            const badge = card.querySelector('.count-badge');
+            if (count > 0) {
+                card.classList.add('selected-destination');
+                badge.innerText = `x${count}`;
+                badge.classList.remove('hidden');
+            } else {
+                card.classList.remove('selected-destination');
+                badge.classList.add('hidden');
+            }
+        });
+
+        // Sync hidden IDs (unique list for destination relation)
+        const uniqueIds = [];
+        itineraryData.forEach(day => day.items.forEach(item => {
+             if (item.item_type === 'location') {
+                 const card = document.querySelector(`.destination-card[data-name="${item.name}"]`);
+                 if (card && !uniqueIds.includes(card.dataset.id)) uniqueIds.push(card.dataset.id);
+             }
+        }));
+        document.getElementById('destinationIdsInput').value = uniqueIds.join(',');
     }
 
     function changeDays(delta) {
         TRIP_DAYS = Math.max(1, Math.min(30, TRIP_DAYS + delta));
-        const daysDisplay = document.getElementById('daysDisplay');
-        const numberOfDaysInput = document.getElementById('numberOfDaysInput');
-
-        if (daysDisplay) daysDisplay.innerText = TRIP_DAYS;
-        if (numberOfDaysInput) numberOfDaysInput.value = TRIP_DAYS;
-
-        // Update itinerary data structure
+        document.getElementById('daysDisplay').innerText = TRIP_DAYS;
+        document.getElementById('numberOfDaysInput').value = TRIP_DAYS;
         updateItineraryDays();
     }
 
     function updateItineraryDays() {
-        // Ensure we have the right number of days
         while (itineraryData.length < TRIP_DAYS) {
-            itineraryData.push({
-                day: itineraryData.length + 1,
-                start_location: '',
-                start_time: '09:00',
-                items: [],
-                end_location: ''
-            });
+            itineraryData.push({ day: itineraryData.length + 1, start_location: '', start_time: '09:00', items: [] });
         }
-
-        // Remove extra days
-        if (itineraryData.length > TRIP_DAYS) {
-            itineraryData = itineraryData.slice(0, TRIP_DAYS);
-        }
-
+        if (itineraryData.length > TRIP_DAYS) itineraryData = itineraryData.slice(0, TRIP_DAYS);
         renderItinerary();
     }
 
-    // Initialize logic
     function init() {
-        // Initialize days
-        const daysDisplay = document.getElementById('daysDisplay');
-        const numberOfDaysInput = document.getElementById('numberOfDaysInput');
-
-        // Check for existing data
+        initMap();
         const serverItineraryEl = document.getElementById('server-itinerary-data');
         const serverDestinationsEl = document.getElementById('server-destinations-data');
 
         if (serverItineraryEl) {
-            try {
-                itineraryData = JSON.parse(serverItineraryEl.textContent);
-                // Ensure legacy fields if missing
-                itineraryData.forEach((day, idx) => {
-                    if (!day.items) day.items = [];
-                    // Fix indices
-                    day.day = idx + 1;
-                });
-
-                TRIP_DAYS = itineraryData.length; // Update trip days based on saved data
-
-                // If we have saved destinations, pre-select them
-                if (serverDestinationsEl) {
-                    try {
-                        const savedDestinations = JSON.parse(serverDestinationsEl.textContent);
-                        if (savedDestinations && Array.isArray(savedDestinations)) {
-                            selectedDestinations = savedDestinations;
-
-                            // Mark them visually
-                            setTimeout(() => {
-                                selectedDestinations.forEach(d => {
-                                    const el = document.querySelector(`.destination-card[data-id="${d.id}"]`);
-                                    if (el) {
-                                        el.classList.add('selected-destination');
-                                        const checkbox = el.querySelector('.destination-checkbox');
-                                        if (checkbox) checkbox.classList.remove('hidden');
-                                    }
-                                });
-
-                                // Update TRIP_DESTINATIONS
-                                TRIP_DESTINATIONS = selectedDestinations.map(d => {
-                                    return ALL_DESTINATIONS.find(ad => ad.id == d.id);
-                                }).filter(d => d);
-
-                                // Update input
-                                const destinationIdsInput = document.getElementById('destinationIdsInput');
-                                if (destinationIdsInput) {
-                                    destinationIdsInput.value = selectedDestinations.map(d => d.id).join(',');
-                                }
-
-                                // Re-render to ensure name linking
-                                renderItinerary();
-                            }, 500); // Delay slightly to ensure DOM is ready
-                        }
-                    } catch (e) { console.error("Error parsing saved destinations", e); }
-                }
-
-            } catch (e) {
-                console.error("Error parsing server itinerary", e);
-                // Fallback to new trip
-                generateNewItinerary();
-            }
+            itineraryData = JSON.parse(serverItineraryEl.textContent);
+            TRIP_DAYS = itineraryData.length;
         } else {
-            // New trip
-            generateNewItinerary();
+            updateItineraryDays();
         }
 
-        if (daysDisplay) daysDisplay.innerText = TRIP_DAYS;
-        if (numberOfDaysInput) numberOfDaysInput.value = TRIP_DAYS;
+        if (serverDestinationsEl) {
+            updateDestinationCounts();
+        }
 
+        document.getElementById('daysDisplay').innerText = TRIP_DAYS;
         renderItinerary();
     }
 
-    function generateNewItinerary() {
-        itineraryData = [];
-        for (let i = 1; i <= TRIP_DAYS; i++) {
-            itineraryData.push({
-                day: i,
-                start_location: '',
-                start_time: '09:00',
-                items: [],
-                end_location: ''
-            });
-        }
-    }
-
-    // --- RENDER LOGIC ---
     function renderItinerary() {
         const container = document.getElementById('daysContainer');
         if (!container) return;
 
-        // Build all HTML
-        let allDaysHtml = '';
+        container.innerHTML = itineraryData.map((day, index) => {
+            const locations = day.items.filter(i => i.item_type === 'location' && i.name);
+            if (locations.length > 0) {
+                day.start_location = locations[0].name;
+                day.end_location = locations[locations.length - 1].name;
+            }
 
-        itineraryData.forEach((day, index) => {
-            if (!day.items) day.items = [];
-            if (!day.day) day.day = index + 1;
-
-            const dayHtml = `
+            return `
             <div class="day-section relative pl-8" data-day-index="${index}">
-                <!-- Vertical Line -->
-                <div class="absolute left-[3px] top-0 bottom-0 w-0.5 bg-white/10 timeline-connector"></div>
-                <!-- Node -->
-                <div class="absolute -left-[6px] top-0 w-5 h-5 bg-blue-500 border-4 border-[#0f172a] rounded-full z-10"></div>
-
-                <div class="glass p-5 mb-12 border-l-4 border-blue-500">
-                    <!-- HEADER -->
-                    <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
-                        <h2 class="text-2xl font-bold text-white flex items-center gap-3">
-                            <span class="bg-blue-600/20 text-blue-400 text-sm px-3 py-1 rounded-full border border-blue-500/30">Day ${day.day}</span>
-                            <span class="text-gray-300 text-lg">Itinerary</span>
+                <div class="absolute left-[3px] top-0 bottom-0 w-0.5 bg-gray-200 timeline-connector"></div>
+                <div class="absolute -left-[6px] top-0 w-5 h-5 bg-blue-500 border-4 border-white rounded-full z-10 shadow-sm"></div>
+                <div class="glass p-6 mb-12 border-l-4 border-blue-500 shadow-sm text-gray-800">
+                    <div class="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                        <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-3">
+                            <span class="bg-blue-50 text-blue-600 text-sm px-3 py-1 rounded-full border border-blue-200">Day ${day.day}</span>
                         </h2>
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Items</div>
-                            <div class="text-xl font-bold text-white">${day.items.length}</div>
-                        </div>
                     </div>
-
-                    <!-- START LOCATION -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="text-[10px] text-green-400 uppercase font-bold mb-1 block">Start Location</label>
-                            <input type="text" value="${day.start_location || ''}" 
-                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-green-500 transition"
-                                placeholder="Where does the day start?"
-                                oninput="updateDayField(${index}, 'start_location', this.value)">
+                    <div class="grid grid-cols-1 md:grid-cols-1 gap-4 mb-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                             <div>
+                                <label class="text-[10px] text-blue-600 uppercase font-bold mb-1.5 block tracking-wider">Starting Point</label>
+                                <input type="text" value="${day.start_location || ''}" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-800 outline-none" placeholder="Start..." oninput="itineraryData[${index}].start_location = this.value">
+                            </div>
+                             <div>
+                                <label class="text-[10px] text-pink-600 uppercase font-bold mb-1.5 block tracking-wider">Ending Point</label>
+                                <input type="text" value="${day.end_location || ''}" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-800 outline-none" placeholder="End..." oninput="itineraryData[${index}].end_location = this.value">
+                            </div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-400 uppercase font-bold mb-1 block">Start Time</label>
-                            <input type="time" value="${day.start_time || '09:00'}"
-                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-blue-500 transition"
-                                onchange="updateDayField(${index}, 'start_time', this.value)">
+                            <label class="text-[10px] text-gray-400 uppercase font-bold mb-1.5 block tracking-wider">Start Time</label>
+                            <input type="time" value="${day.start_time || '09:00'}" class="w-full bg-gray-50 border border-gray-200 rounded-lg px-4 py-2.5 text-gray-800 outline-none" onchange="itineraryData[${index}].start_time = this.value">
                         </div>
                     </div>
-
-                    <!-- ITEMS LIST -->
-                    <div class="space-y-4 relative pl-6 mb-4">
-                        <div class="absolute left-[10px] top-2 bottom-2 w-px bg-gray-700 bg-dashed"></div>
+                    <div class="space-y-4 relative mb-8">
                         ${renderItems(day.items, index)}
                     </div>
-                    
-                    <!-- ADD BUTTONS -->
-                    <div class="flex gap-2 mb-4">
-                        <button type="button" onclick="addLocation(${index})"
-                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-blue-500 hover:bg-blue-500/5 transition flex items-center justify-center gap-2 text-sm">
-                            <i class="fas fa-map-marker-alt"></i> Add Location
+                    <div class="flex gap-4 pt-4 border-t border-gray-50">
+                        <button type="button" onclick="addItem(${index}, 'location')" class="flex-1 py-3 bg-blue-50 text-blue-600 font-semibold rounded-xl hover:bg-blue-100 transition flex items-center justify-center gap-2">
+                             <i class="fas fa-map-marker-alt"></i> Add Location
                         </button>
-                        <button type="button" onclick="addActivity(${index})"
-                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-green-500 hover:bg-green-500/5 transition flex items-center justify-center gap-2 text-sm">
-                            <i class="fas fa-plus"></i> Add Activity
+                        <button type="button" onclick="addItem(${index}, 'activity')" class="flex-1 py-3 bg-green-50 text-green-600 font-semibold rounded-xl hover:bg-green-100 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-plus-circle"></i> Add Activity
                         </button>
                     </div>
                 </div>
             </div>`;
-            allDaysHtml += dayHtml;
-        });
+        }).join('');
+        updateMapMarkers();
+    }
 
-        container.innerHTML = allDaysHtml;
-        calculateTotalCost();
+    function getActivityIcon(type, subType) {
+        if (type === 'location') return 'fa-map-marker-alt';
+        const icons = {
+            'sightseeing': 'fa-camera',
+            'travel': 'fa-route',
+            'food': 'fa-utensils',
+            'accommodation': 'fa-hotel'
+        };
+        const subIcons = {
+            'car': 'fa-taxi', 'bus': 'fa-bus', 'train': 'fa-train', 'flight': 'fa-plane',
+            'restaurant': 'fa-utensils', 'hotel_3star': 'fa-hotel', 'hotel_5star': 'fa-hotel',
+            'monument': 'fa-monument', 'temple': 'fa-om', 'park': 'fa-tree', 'resort': 'fa-umbrella-beach'
+        };
+        return subIcons[subType] || icons[type] || 'fa-dot-circle';
     }
 
     function renderItems(items, dayIndex) {
-        if (!items || items.length === 0) return '<div class="text-xs text-gray-500 italic pl-4">No items added. Add a location first, then activities.</div>';
-
+        if (!items || items.length === 0) return '<div class="text-xs text-gray-400 italic pl-4">No items added yet.</div>';
         return items.map((item, itemIndex) => {
-            const itemType = item.item_type || 'activity';
-
-            if (itemType === 'location') {
-                let destOptions = '<option value="">Select Destination</option>';
-                if (TRIP_DESTINATIONS.length > 0) {
-                    TRIP_DESTINATIONS.forEach(d => {
-                        const safeName = (d.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        destOptions += `<option value="${d.id}" ${item.destination_id == d.id ? 'selected' : ''}>${safeName}</option>`;
-                    });
-                }
-
-                return `
-                <div class="relative flex items-start gap-3 mb-4 group">
-                    <div class="w-3 h-3 rounded-full bg-blue-500 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
-                    <div class="flex-1 bg-blue-500/10 border-l-2 border-blue-500 rounded-r-lg p-3">
-                        <div class="flex justify-between mb-2">
-                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Location Name"
-                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-blue-500 outline-none w-3/4"
-                                 oninput="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
-                            <button type="button" onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
-                        </div>
-                        <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
-                                onchange="handleLocationSelect(${dayIndex}, ${itemIndex}, this.value)">
-                            ${destOptions}
-                        </select>
+            const isLoc = item.item_type === 'location';
+            const icon = getActivityIcon(isLoc ? 'location' : item.type, item.sub_type);
+            return `
+            <div class="relative flex items-start gap-4 group animate-fadeIn mb-10 last:mb-0">
+                <div class="flex flex-col items-center gap-1">
+                    <button type="button" onclick="reorder(${dayIndex}, ${itemIndex}, -1)" class="text-gray-300 hover:text-blue-500 text-[10px]"><i class="fas fa-chevron-up"></i></button>
+                    <div class="w-12 h-12 rounded-full ${isLoc ? 'bg-blue-600 shadow-md' : 'bg-orange-500 shadow-md'} flex items-center justify-center text-white text-lg z-10 transition-transform group-hover:scale-110">
+                        <i class="fas ${icon}"></i>
                     </div>
-                </div>`;
-            } else {
-                // Activity
-                const mainType = item.type || 'sightseeing';
-                const subTypeOptions = getSubTypeOptions(mainType);
-                const currentSubType = item.sub_type || '';
-
-                // Generate sub-type select options
-                let subTypeSelectHtml = `<select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
-                        onchange="updateItemField(${dayIndex}, ${itemIndex}, 'sub_type', this.value)">
-                        <option value="">Select Detail</option>
-                        ${subTypeOptions.map(opt => `<option value="${opt.value}" ${currentSubType == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
-                    </select>`;
-
-
-
-
-                return `
-                <div class="relative flex items-start gap-3 mb-4 group">
-                    <div class="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
-                    <div class="flex-1 bg-white/5 border-l-2 border-green-400/30 rounded-r-lg p-3 hover:bg-white/10 transition">
-                        <div class="flex justify-between mb-2">
-                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Activity Name"
-                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-green-500 outline-none w-3/4"
-                                 oninput="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
-                            <button onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
+                    <button type="button" onclick="reorder(${dayIndex}, ${itemIndex}, 1)" class="text-gray-300 hover:text-blue-500 text-[10px]"><i class="fas fa-chevron-down"></i></button>
+                </div>
+                <div class="flex-1 ${isLoc ? 'bg-blue-50/50 border-blue-100' : 'bg-gray-50 border-gray-100'} border rounded-2xl p-5 shadow-sm transition hover:shadow-md">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <label class="text-[9px] text-gray-400 uppercase font-bold block mb-1">Name</label>
+                            <input type="text" value="${item.name || ''}" placeholder="${isLoc ? 'Search location...' : 'Activity description...'}" 
+                                class="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-gray-800 font-bold text-sm outline-none focus:ring-2 focus:ring-blue-100" 
+                                oninput="itineraryData[${dayIndex}].items[${itemIndex}].name = this.value">
                         </div>
-                        <div class="grid grid-cols-12 gap-2">
-                             <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Type</label>
-                                <select class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1"
-                                        onchange="updateItemField(${dayIndex}, ${itemIndex}, 'type', this.value); renderItinerary();">
-                                    <option value="sightseeing" ${mainType == 'sightseeing' ? 'selected' : ''}>Sightseeing</option>
-                                    <option value="travel" ${mainType == 'travel' ? 'selected' : ''}>Travel</option>
-                                    <option value="food" ${mainType == 'food' ? 'selected' : ''}>Food</option>
-                                    <option value="accommodation" ${mainType == 'accommodation' ? 'selected' : ''}>Accommodation</option>
-                                    <option value="adventure" ${mainType == 'adventure' ? 'selected' : ''}>Adventure</option>
-                                    <option value="shopping" ${mainType == 'shopping' ? 'selected' : ''}>Shopping</option>
-                                </select>
-                            </div>
-                            <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Sub-Type</label>
-                                <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
-                                     onchange="updateItemField(${dayIndex}, ${itemIndex}, 'sub_type', this.value)">
-                                    <option value="">Select Detail</option>
-                                    ${subTypeOptions.map(opt => `<option value="${opt.value}" ${currentSubType == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
-                                </select>
-                            </div>
-                             <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Time (hrs)</label>
-                                <input type="number" value="${item.duration || 1}" min="0.5" step="0.5" 
-                                    class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
-                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'duration', this.value)">
-                            </div>
-                            <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Cost (₹)</label>
-                                <input type="number" value="${item.cost || ''}" placeholder="0" min="0" 
-                                    class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
-                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'cost', this.value)">
-                            </div>
+                        <div class="flex items-center gap-2 ml-4 mt-5">
+                             <select class="bg-white border border-gray-200 text-[10px] text-gray-600 px-2 py-1.5 rounded-lg outline-none" onchange="moveDay(${dayIndex}, ${itemIndex}, this.value)">
+                                <option value="">Move Day</option>
+                                ${Array.from({length: TRIP_DAYS}, (_, i) => `<option value="${i}">Day ${i+1}</option>`).join('')}
+                            </select>
+                            <button type="button" onclick="removeItem(${dayIndex}, ${itemIndex})" class="w-8 h-8 flex items-center justify-center bg-red-50 text-red-500 hover:bg-red-500 hover:text-white rounded-lg transition">
+                                <i class="fas fa-trash-alt text-xs"></i>
+                            </button>
                         </div>
                     </div>
-                </div>`;
-            }
+                    ${!isLoc ? `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[9px] text-gray-400 uppercase font-bold block mb-1">Type</label>
+                            <select class="w-full bg-white border border-gray-200 text-xs text-gray-700 p-2 rounded-lg" onchange="itineraryData[${dayIndex}].items[${itemIndex}].type = this.value; updateItemIcon(${dayIndex}, ${itemIndex});">
+                                <option value="sightseeing" ${item.type == 'sightseeing' ? 'selected' : ''}>Sightseeing</option>
+                                <option value="travel" ${item.type == 'travel' ? 'selected' : ''}>Travel</option>
+                                <option value="food" ${item.type == 'food' ? 'selected' : ''}>Food</option>
+                                <option value="accommodation" ${item.type == 'accommodation' ? 'selected' : ''}>Accommodation</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[9px] text-gray-400 uppercase font-bold block mb-1">Sub-Type</label>
+                            <select class="w-full bg-white border border-gray-200 text-xs text-gray-700 p-2 rounded-lg" onchange="itineraryData[${dayIndex}].items[${itemIndex}].sub_type = this.value; updateItemIcon(${dayIndex}, ${itemIndex});">
+                                ${getSubTypeOptions(item.type || 'sightseeing').map(opt => `<option value="${opt.value}" ${item.sub_type == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>` : `
+                    <div class="flex items-center justify-between">
+                         <div class="text-[10px] text-blue-500 font-medium">
+                            <i class="fas fa-map-marker-alt mr-1"></i> ${item.lat ? `Coordinates Locked` : 'Draft Position'}
+                         </div>
+                         <div class="text-[9px] text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">Location Node</div>
+                    </div>`}
+                </div>
+            </div>`;
         }).join('');
     }
 
-    // --- UPDATERS ---
-    function updateDayField(dIdx, field, val) {
-        itineraryData[dIdx][field] = val;
+    function reorder(dayIdx, itemIdx, direction) {
+        const newIdx = itemIdx + direction;
+        if (newIdx < 0 || newIdx >= itineraryData[dayIdx].items.length) return;
+        const items = itineraryData[dayIdx].items;
+        [items[itemIdx], items[newIdx]] = [items[newIdx], items[itemIdx]];
+        renderItinerary();
     }
 
-    function updateItemField(dIdx, iIdx, field, val) {
-        itineraryData[dIdx].items[iIdx][field] = val;
-
-        if (field === 'type') {
-            itineraryData[dIdx].items[iIdx].sub_type = ''; // Reset sub type
+    function updateItemIcon(dayIdx, itemIdx) {
+        const item = itineraryData[dayIdx].items[itemIdx];
+        const icon = getActivityIcon(item.item_type === 'location' ? 'location' : item.type, item.sub_type);
+        const itemEl = document.querySelector(`.day-section[data-day-index="${dayIdx}"] .group:nth-of-type(${itemIdx + 1})`);
+        
+        if (itemEl) {
+            // Update Icon
+            const iconEl = itemEl.querySelector('.w-12 i');
+            if (iconEl) iconEl.className = `fas ${icon}`;
+            
+            // Update Sub-Type Select Options instantly if it's an activity
+            if (item.item_type !== 'location') {
+                 const selects = itemEl.querySelectorAll('select');
+                 // 0: Move Day, 1: Category (Type), 2: Details (Sub-Type)
+                 const targetSubTypeSelect = selects[2];
+                 if (targetSubTypeSelect) {
+                    const opts = getSubTypeOptions(item.type);
+                    if (targetSubTypeSelect.options.length !== opts.length || targetSubTypeSelect.options[0].value !== opts[0].value) {
+                        targetSubTypeSelect.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                        item.sub_type = opts[0].value;
+                    }
+                 }
+            }
         }
-
-        // Recalculate cost if field is cost
-        if (field === 'cost') {
-            calculateTotalCost();
-        }
     }
 
-    function addLocation(dIdx) {
-        itineraryData[dIdx].items.push({
-            item_type: 'location',
-            name: '',
-            destination_id: ''
-        });
+    function moveDay(fromDay, itemIndex, toDay) {
+        if (toDay === "") return;
+        toDay = parseInt(toDay);
+        if (fromDay === toDay) return;
+        const item = itineraryData[fromDay].items.splice(itemIndex, 1)[0];
+        if (!itineraryData[toDay].items) itineraryData[toDay].items = [];
+        itineraryData[toDay].items.push(item);
         renderItinerary();
     }
 
-    function addActivity(dIdx) {
-        itineraryData[dIdx].items.push({
-            item_type: 'activity',
-            name: '',
-            type: 'sightseeing',
-            sub_type: '',
-            duration: 1,
-            cost: ''
-        });
+    function addItem(dayIdx, type) {
+        itineraryData[dayIdx].items.push(type === 'location' ? { item_type: 'location', name: '', lat: 0, lng: 0 } : { item_type: 'activity', name: '', type: 'sightseeing', sub_type: '', duration: 1 });
         renderItinerary();
     }
 
-    function removeItem(dIdx, iIdx) {
-        itineraryData[dIdx].items.splice(iIdx, 1);
+    function removeItem(dayIdx, itemIdx) {
+        itineraryData[dayIdx].items.splice(itemIdx, 1);
         renderItinerary();
-        calculateTotalCost();
     }
 
-    function handleLocationSelect(dIdx, iIdx, value) {
-        const dest = TRIP_DESTINATIONS.find(d => d.id == value);
-        if (dest) {
-            itineraryData[dIdx].items[iIdx].name = dest.name;
-            itineraryData[dIdx].items[iIdx].destination_id = value;
+    async function searchOnMap() {
+        const query = document.getElementById('mapSearchInput').value;
+        if (!query) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`);
+        const data = await res.json();
+        if (data.length > 0) {
+            const { lat, lon, display_name } = data[0];
+            const name = display_name.split(',')[0];
+            const flat = parseFloat(lat);
+            const flon = parseFloat(lon);
+            map.flyTo([flat, flon], 13);
+            addLocationFromMap(flat, flon, name);
         } else {
-            itineraryData[dIdx].items[iIdx].name = '';
-            itineraryData[dIdx].items[iIdx].destination_id = '';
+            alert('Location not found in India.');
         }
-        renderItinerary();
     }
 
-    function calculateTotalCost() {
-        let total = 0;
-
-        if (Array.isArray(itineraryData)) {
-            itineraryData.forEach(day => {
-                if (Array.isArray(day.items)) {
-                    day.items.forEach(item => {
-                        const cost = parseFloat(item.cost);
-                        if (!isNaN(cost) && cost > 0) {
-                            total += cost;
-                        }
-                    });
-                }
-            });
-        }
-
-        // Normalize to whole currency (₹)
-        total = Math.round(total);
-
-        // Update total_cost field ONLY if present
-        const costInput =
-            document.getElementById('id_total_cost') ||
-            document.querySelector('input[name="total_cost"]');
-
-        // FIXED: Do not overwrite manual price entry with sum of items
-        // if (costInput) {
-        //    costInput.value = total;
-        // }
-
-        return total;
+    function addLocationFromMap(lat, lng, name) {
+        if (!itineraryData[0].items) itineraryData[0].items = [];
+        itineraryData[0].items.push({ item_type: 'location', name: name, lat: lat, lng: lng });
+        updateDestinationCounts();
+        renderItinerary();
     }
 
     function saveItineraryJSON() {
-        const itineraryInput = document.getElementById('itineraryJson');
-        if (itineraryInput) {
-            itineraryInput.value = JSON.stringify(itineraryData || []);
-        }
-
-        // Ensure price sync before submit
-        calculateTotalCost();
-
-        return true; // allow form submit
+        document.getElementById('itineraryJson').value = JSON.stringify(itineraryData);
+        return true;
     }
 
-
-    // --- MAIN INITIALIZATION ---
-    // Run
     init();
 </script>
-
 {% endblock %}

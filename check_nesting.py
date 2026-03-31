@@ -45,6 +45,6 @@ def check_nesting(file_path):
     else:
         print("\nSuccess: All blocks correctly closed.")
 
-file_path = r"c:\project\TOURISM\templates\admin\package_form.html"
+file_path = r"d:\DEV\TOURISM\templates\admin\package_form.html"
 print(f"Checking {file_path}...")
 check_nesting(file_path)

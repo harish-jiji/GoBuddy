@@ -16,6 +16,8 @@ from customers.models import TripPlan, UserProfile
 # ============================================================
 # CUSTOMER DASHBOARD
 # ============================================================
+from django.db.models import Sum, Count
+
 @login_required(login_url='core:signin')
 def dashboard(request):
     recent_bookings = Booking.objects.filter(user=request.user).order_by('-created_at')[:10]
@@ -29,7 +31,24 @@ def dashboard(request):
     trips_count = Booking.objects.filter(user=request.user).count()
 
     popular_destinations = Destination.objects.filter(is_active=True).order_by('-created_at')[:6]
-    recommended_packages = Package.objects.filter(is_active=True).order_by('-created_at')[:6]
+    
+    # RECOMMENDED PACKAGES (Filtered by user preference if profile exists)
+    user_style = request.user.profile.travel_style
+    user_acc = request.user.profile.accommodation_preference
+    
+    recommended_packages = Package.objects.filter(is_active=True)
+    if user_style:
+        recommended_packages = recommended_packages.filter(category=user_style)
+    # If no results based on style, we fallback or combine
+    if recommended_packages.count() < 3:
+        recommended_packages = Package.objects.filter(is_active=True)
+        
+    recommended_packages = recommended_packages.order_by('-created_at')[:6]
+
+    # POPULAR PACKAGES (By most bookings)
+    popular_packages = Package.objects.filter(is_active=True).annotate(
+        booking_count=Count('booking')
+    ).order_by('-booking_count')[:6]
 
     latest_trip = TripPlan.objects.filter(user=request.user).order_by('-id').first()
 
@@ -41,6 +60,7 @@ def dashboard(request):
         'total_spent': total_spent,
         'popular_destinations': popular_destinations,
         'recommended_packages': recommended_packages,
+        'popular_packages': popular_packages,
         'latest_trip': latest_trip,
     })
 
@@ -131,18 +151,11 @@ def save_trip(request):
     except (ValueError, TypeError):
         number_of_days = 1
 
-    # Parse JSON fields safely
-    itinerary_raw = request.POST.get("itinerary_json", "[]")
-    try:
-        itinerary = json.loads(itinerary_raw) if isinstance(itinerary_raw, str) else itinerary_raw
-    except Exception:
-        itinerary = []
-
     # Parse itinerary JSON
     itinerary_raw = request.POST.get("itinerary_json", "[]")
     try:
         itinerary = json.loads(itinerary_raw) if isinstance(itinerary_raw, str) else itinerary_raw
-    except Exception:
+    except (ValueError, TypeError, json.JSONDecodeError):
         itinerary = []
     
     # Get start and end locations
@@ -200,12 +213,14 @@ def plan_trip_itinerary(request):
 
 
 
-# ============================================================
-# TRIP DETAIL PAGE
-# ============================================================
 @login_required(login_url='core:signin')
 def trip_detail(request, trip_id):
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.info(request, "This trip plan no longer exists.")
+        return redirect("customers:US_Dashboard")
+        
     latest_trip = TripPlan.objects.filter(user=request.user).order_by('-id').first()
 
     return render(request, "customers/trip_detail.html", {
@@ -219,7 +234,11 @@ def trip_detail(request, trip_id):
 # ============================================================
 @login_required(login_url='core:signin')
 def edit_trip(request, trip_id):
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
 
     if request.method == "POST":
 
@@ -243,14 +262,18 @@ def edit_trip(request, trip_id):
         # ---------- DESTINATIONS ----------
         destination_ids = request.POST.get("destination_ids")
         if destination_ids:
-            trip.destination_ids = destination_ids.split(",")
+            try:
+                dest_ids_list = [int(id.strip()) for id in destination_ids.split(',') if id.strip()]
+                trip.destinations.set(Destination.objects.filter(id__in=dest_ids_list))
+            except (ValueError, TypeError):
+                pass
 
         # ---------- ITINERARY ----------
         itinerary_json = request.POST.get("itinerary_json")
         if itinerary_json:
             try:
-                trip.itinerary_json = json.loads(itinerary_json)
-            except Exception:
+                trip.itinerary = json.loads(itinerary_json)
+            except (ValueError, TypeError, json.JSONDecodeError):
                 pass
 
         # ---------- PREFERENCES ----------
@@ -324,15 +347,18 @@ def edit_trip(request, trip_id):
 # ============================================================
 @login_required(login_url='core:signin')
 def delete_trip(request, trip_id):
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    # Try to get the trip, if not found (already deleted), redirect to dashboard
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "Trip plan not found or already deleted.")
+        return redirect("customers:US_Dashboard")
 
-    # For safety, require POST to delete (if you want a GET-delete confirm page you can add it)
     if request.method == "POST":
         trip.delete()
         messages.success(request, "Trip deleted successfully!")
-        return redirect("customers:plan_trips")
+        return redirect("customers:US_Dashboard")
 
-    # If GET, show a simple confirmation page (optional)
     return render(request, "customers/confirm_delete_trip.html", {"trip": trip})
 
 
@@ -341,7 +367,11 @@ def delete_trip(request, trip_id):
 # ============================================================
 @login_required(login_url='core:signin')
 def convert_trip(request, trip_id):
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
 
     # Create a minimal Booking from TripPlan — adjust fields as your Booking model requires
     booking = Booking.objects.create(
@@ -363,12 +393,38 @@ def convert_trip(request, trip_id):
 # ============================================================
 @login_required(login_url='core:signin')
 def inbox(request):
-    messages_list = Message.objects.filter(user=request.user).order_by('-created_at')
+    filter_type = request.GET.get('filter', 'all')
+    
+    # Query all messages for the current user
+    all_messages = Message.objects.filter(user=request.user).order_by('-created_at')
+    
+    # Get total and unread counts for stats cards
+    total_messages = all_messages.count()
+    unread_count = all_messages.filter(is_read=False).count()
+    
+    # Get category counts for filter tabs
+    bookings_count = all_messages.filter(category='bookings').count()
+    payments_count = all_messages.filter(category='payments').count()
+    offers_count = all_messages.filter(category='offers').count()
+    system_count = all_messages.filter(category='system').count()
+    
+    # Apply filtering to the main list
+    messages_list = all_messages
+    if filter_type != 'all':
+        messages_list = all_messages.filter(category=filter_type)
+    
     latest_trip = TripPlan.objects.filter(user=request.user).order_by('-id').first()
 
     return render(request, 'customers/Inbox.html', {
-        'messages': messages_list,
+        'user_messages': messages_list,
         'latest_trip': latest_trip,
+        'filter': filter_type,
+        'total_messages': total_messages,
+        'unread_count': unread_count,
+        'bookings_count': bookings_count,
+        'payments_count': payments_count,
+        'offers_count': offers_count,
+        'system_count': system_count,
     })
 
 
@@ -386,6 +442,10 @@ def profile(request):
     if request.method == "POST":
         # USER fields
         user.full_name = request.POST.get("full_name", user.full_name)
+        new_username = request.POST.get("username", "").strip()
+        if new_username:
+            user.username = new_username.lower() # lowercase enforced
+            
         user.email = request.POST.get("email", user.email)
         dob = request.POST.get("date_of_birth")
         if dob:
@@ -397,29 +457,11 @@ def profile(request):
         profile.location = request.POST.get("location", profile.location)
         profile.bio = request.POST.get("bio", profile.bio)
 
-        # file upload
         if request.FILES.get("profile_image"):
             profile.profile_image = request.FILES["profile_image"]
 
-        profile.travel_style = request.POST.get("travel_style", profile.travel_style)
-        profile.accommodation_preference = request.POST.get("accommodation", profile.accommodation_preference)
-        profile.budget_range = request.POST.get("budget_range", profile.budget_range)
-        profile.travel_companions = request.POST.get("companions", profile.travel_companions)
-
-        profile.travel_interests = request.POST.getlist("interests")
-
-        # Notifications & privacy flags (store booleans)
-        profile.email_notifications = bool(request.POST.get("email_notifications"))
-        profile.booking_updates = bool(request.POST.get("booking_updates"))
-        profile.payment_alerts = bool(request.POST.get("payment_alerts"))
-        profile.special_offers = bool(request.POST.get("special_offers"))
-
-        profile.public_profile = bool(request.POST.get("public_profile"))
-        profile.show_travel_history = bool(request.POST.get("show_travel_history"))
-        profile.data_analytics = bool(request.POST.get("data_analytics"))
-
         profile.save()
-        messages.success(request, "Profile updated successfully!")
+        messages.success(request, "General profile settings updated!")
         return redirect("customers:profile")
 
     interests_list = [
@@ -433,9 +475,144 @@ def profile(request):
         "user": user,
         "profile": profile,
         "latest_trip": latest_trip,
-        "profile_completion": getattr(profile, "profile_completion_percentage", 0),
-        "interests_list": interests_list,
     })
+
+
+@login_required(login_url='core:signin')
+def security_settings(request):
+    """View and update security questions and passwords"""
+    profile = request.user.profile
+    if request.method == "POST":
+        action = request.POST.get("action")
+        if action == "questions":
+            profile.security_q1 = request.POST.get("q1")
+            profile.security_a1 = request.POST.get("a1", "").lower().strip()
+            profile.security_q2 = request.POST.get("q2")
+            profile.security_a2 = request.POST.get("a2", "").lower().strip()
+            profile.security_q3 = request.POST.get("q3")
+            profile.security_a3 = request.POST.get("a3", "").lower().strip()
+            profile.save()
+            messages.success(request, "Security questions updated!")
+        
+        elif action == "password":
+            from django.contrib.auth import update_session_auth_hash
+            from django.contrib.auth.forms import PasswordChangeForm
+            form = PasswordChangeForm(request.user, request.POST)
+            if form.is_valid():
+                user = form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Password changed successfully!")
+            else:
+                messages.error(request, "Please correct the error below.")
+
+        return redirect("customers:security_settings")
+        
+    return render(request, "customers/Security.html", {"profile": profile})
+
+
+@login_required(login_url='core:signin')
+def privacy_settings(request):
+    """Update privacy preferences"""
+    profile = request.user.profile
+    if request.method == "POST":
+        profile.privacy_level = request.POST.get("privacy_level", profile.privacy_level)
+        profile.save()
+        messages.success(request, "Privacy settings updated!")
+        return redirect("customers:privacy_settings")
+        
+    return render(request, "customers/Privacy.html", {"profile": profile})
+
+
+@login_required(login_url='core:signin')
+def notification_settings(request):
+    """Update notification choices"""
+    profile = request.user.profile
+    if request.method == "POST":
+        profile.email_notifications = 'email_notif' in request.POST
+        profile.booking_updates = 'booking_notif' in request.POST
+        profile.payment_alerts = 'payment_notif' in request.POST
+        profile.special_offers = 'offers_notif' in request.POST
+        profile.save()
+        messages.success(request, "Notification preferences updated!")
+        return redirect("customers:notification_settings")
+        
+    return render(request, "customers/Notifications.html", {"profile": profile})
+
+
+@login_required(login_url='core:signin')
+def friends_list(request):
+    """View friends and incoming requests"""
+    from django.db.models import Q
+    from .models import Friendship
+    
+    # Friends: where status is accepted
+    friends = Friendship.objects.filter(
+        Q(from_user=request.user) | Q(to_user=request.user),
+        status='accepted'
+    )
+    
+    incoming_requests = Friendship.objects.filter(to_user=request.user, status='pending')
+    outgoing_requests = Friendship.objects.filter(from_user=request.user, status='pending')
+    
+    return render(request, "customers/Friends.html", {
+        "friends": friends,
+        "incoming": incoming_requests,
+        "outgoing": outgoing_requests
+    })
+
+
+@login_required(login_url='core:signin')
+def search_friends(request):
+    """Search for other users by username or email"""
+    query = request.GET.get("q", "").strip().lower()
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    
+    results = []
+    if query:
+        results = User.objects.filter(
+            Q(email__icontains=query) | Q(username__icontains=query)
+        ).exclude(id=request.user.id)
+        
+    return render(request, "customers/Friends_Search.html", {"results": results, "query": query})
+
+
+@login_required(login_url='core:signin')
+def send_friend_request(request, user_id):
+    """Send an invitation to another user"""
+    from .models import Friendship
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    to_user = get_object_or_404(User, id=user_id)
+    
+    # Check if request exists
+    if Friendship.objects.filter(from_user=request.user, to_user=to_user).exists():
+        messages.info(request, "Request already sent.")
+    else:
+        Friendship.objects.create(from_user=request.user, to_user=to_user)
+        messages.success(request, "Friend request sent!")
+        
+    return redirect("customers:friends_list")
+
+
+@login_required(login_url='core:signin')
+def accept_friend_request(request, request_id):
+    from .models import Friendship
+    friend_request = get_object_or_404(Friendship, id=request_id, to_user=request.user)
+    friend_request.status = 'accepted'
+    friend_request.save()
+    messages.success(request, "Friend request accepted!")
+    return redirect("customers:friends_list")
+
+
+@login_required(login_url='core:signin')
+def reject_friend_request(request, request_id):
+    from .models import Friendship
+    friend_request = get_object_or_404(Friendship, id=request_id, to_user=request.user)
+    friend_request.status = 'rejected'
+    friend_request.save()
+    messages.info(request, "Friend request rejected.")
+    return redirect("customers:friends_list")
 
 
 # ============================================================
@@ -463,7 +640,11 @@ def my_trips(request):
 @login_required(login_url='core:signin')
 def submit_for_approval(request, trip_id):
     """Submit a draft trip plan for admin approval"""
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
     
     if request.method == 'POST':
         if trip.status == 'draft':
@@ -495,7 +676,11 @@ def submit_for_approval(request, trip_id):
 @login_required(login_url='core:signin')
 def accept_admin_revision(request, trip_id):
     """Customer accepts admin's revised trip plan"""
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
     
     if trip.status == 'customer_review':
         trip.status = 'approved'
@@ -523,7 +708,11 @@ def accept_admin_revision(request, trip_id):
 @login_required(login_url='core:signin')
 def reject_admin_revision(request, trip_id):
     """Customer rejects admin's revised trip plan"""
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
     
     if trip.status == 'customer_review':
         trip.status = 'draft'
@@ -551,7 +740,11 @@ def reject_admin_revision(request, trip_id):
 @login_required(login_url='core:signin')
 def select_trip_dates(request, trip_id):
     """Customer selects actual travel dates for submitted trip"""
-    trip = get_object_or_404(TripPlan, id=trip_id, user=request.user)
+    try:
+        trip = TripPlan.objects.get(id=trip_id, user=request.user)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan is no longer available.")
+        return redirect("customers:US_Dashboard")
     
     # Allow access after submit (pending) or approved status
     if trip.status not in ['pending', 'approved']:
@@ -598,16 +791,22 @@ def select_trip_dates(request, trip_id):
 def browse_packages(request):
     """Browse pre-planned packages"""
     category_filter = request.GET.get('category', 'all')
+    sort_by = request.GET.get('sort', 'newest')
     
     # Get pre-planned packages that are available and active
     qs = Package.objects.filter(
         is_preplanned=True,
         available_for_booking=True,
         is_active=True
-    ).prefetch_related('destinations').order_by('-created_at')
+    ).prefetch_related('destinations')
     
     if category_filter != 'all':
         qs = qs.filter(category=category_filter)
+        
+    if sort_by == 'popular':
+        qs = qs.annotate(booking_count=Count('booking')).order_by('-booking_count')
+    else:
+        qs = qs.order_by('-created_at')
     
     # Get customer's converted packages
     my_converted = Package.objects.filter(

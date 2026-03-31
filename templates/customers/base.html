@@ -39,6 +39,14 @@
         transform: translateX(0)
       }
     }
+
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    .animate-slide-in {
+      animation: slideIn 0.3s ease-out forwards;
+    }
   </style>
 </head>
 
@@ -182,6 +190,11 @@
           <i class="fas fa-envelope"></i> <span>Inbox</span>
         </a>
 
+        <a href="{% url 'customers:friends_list' %}"
+          class="sidebar-link block px-4 py-3 rounded-xl flex items-center space-x-3">
+          <i class="fas fa-user-friends"></i> <span>My Friends</span>
+        </a>
+
         <a href="{% url 'customers:profile' %}"
           class="sidebar-link block px-4 py-3 rounded-xl flex items-center space-x-3">
           <i class="fas fa-user"></i> <span>Profile</span>
@@ -194,6 +207,35 @@
 
     <!-- MAIN CONTENT AREA -->
     <main class="flex-1 p-6 lg:p-8">
+      {% if messages %}
+      <div class="max-w-4xl mx-auto mb-6 space-y-4">
+        {% for message in messages %}
+        <div class="px-6 py-4 rounded-2xl flex items-center justify-between border animate-slide-in
+          {% if message.tags == 'success' %}
+            bg-green-500/10 border-green-500/30 text-green-400
+          {% elif message.tags == 'error' %}
+            bg-red-500/10 border-red-500/30 text-red-400
+          {% else %}
+            bg-blue-500/10 border-blue-500/30 text-blue-400
+          {% endif %}">
+          <div class="flex items-center">
+            {% if message.tags == 'success' %}
+            <i class="fas fa-check-circle mr-3"></i>
+            {% elif message.tags == 'error' %}
+            <i class="fas fa-exclamation-circle mr-3"></i>
+            {% else %}
+            <i class="fas fa-info-circle mr-3"></i>
+            {% endif %}
+            <span class="font-medium text-sm">{{ message }}</span>
+          </div>
+          <button onclick="this.parentElement.remove()" class="text-white/40 hover:text-white transition">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
       {% block content %}{% endblock %}
     </main>
 

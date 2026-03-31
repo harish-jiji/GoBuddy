@@ -159,7 +159,7 @@ class DestinationListView(ListView):
 
 class DestinationCreateView(CreateView):
     model = Destination
-    fields = ['name', 'url_name', 'country', 'state', 'description', 'image', 'price_per_day', 'best_season', 'is_active']
+    fields = ['name', 'url_name', 'country', 'state', 'description', 'image', 'price_per_day', 'best_season', 'latitude', 'longitude', 'is_active']
     template_name = 'admin/destination_form.html'
 
     def dispatch(self, request, *args, **kwargs):
@@ -177,7 +177,7 @@ class DestinationCreateView(CreateView):
 
 class DestinationUpdateView(UpdateView):
     model = Destination
-    fields = ['name', 'url_name', 'country', 'state', 'description', 'image', 'price_per_day', 'best_season', 'is_active']
+    fields = ['name', 'url_name', 'country', 'state', 'description', 'image', 'price_per_day', 'best_season', 'latitude', 'longitude', 'is_active']
     template_name = 'admin/destination_form.html'
 
     def dispatch(self, request, *args, **kwargs):
@@ -202,6 +202,11 @@ class DestinationDeleteView(DeleteView):
         if not is_owner(request.user):
             return redirect('adminpanel:destinations')
         return super().dispatch(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        messages.success(self.request, f'Destination "{obj.name}" has been deleted.')
+        return super().delete(request, *args, **kwargs)
 
     def get_success_url(self):
         return reverse('adminpanel:destinations')
@@ -319,13 +324,22 @@ class PackageDeleteView(DeleteView):
             return redirect('adminpanel:packages')
         return super().dispatch(request, *args, **kwargs)
 
+    def delete(self, request, *args, **kwargs):
+        obj = self.get_object()
+        messages.success(self.request, f'Package "{obj.name}" has been deleted.')
+        return super().delete(request, *args, **kwargs)
+
     def get_success_url(self):
         return reverse('adminpanel:packages')
 
 
 @staff_and_group_required
 def package_detail(request, pk):
-    package = get_object_or_404(Package, pk=pk)
+    try:
+        package = Package.objects.get(pk=pk)
+    except Package.DoesNotExist:
+        messages.warning(request, "This package no longer exists.")
+        return redirect('adminpanel:packages')
     related_bookings = Booking.objects.filter(package=package).select_related('user').order_by('-created_at')[:50]
     
     # Handle Note Post
@@ -574,7 +588,11 @@ def trip_plans_list(request):
 @staff_and_group_required
 def trip_plan_review(request, pk):
     """Review and manage a specific trip plan"""
-    trip_plan = get_object_or_404(TripPlan, pk=pk)
+    try:
+        trip_plan = TripPlan.objects.get(pk=pk)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan has been deleted or is unavailable.")
+        return redirect('adminpanel:trip_plans')
     
     return render(request, 'admin/trip_plan_review.html', {
         'trip_plan': trip_plan,
@@ -584,7 +602,11 @@ def trip_plan_review(request, pk):
 @staff_and_group_required
 def trip_plan_approve(request, pk):
     """Approve a trip plan"""
-    trip_plan = get_object_or_404(TripPlan, pk=pk)
+    try:
+        trip_plan = TripPlan.objects.get(pk=pk)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan no longer exists.")
+        return redirect('adminpanel:trip_plans')
     
     if request.method == 'POST':
         trip_plan.status = 'approved'
@@ -610,7 +632,11 @@ def trip_plan_approve(request, pk):
 @staff_and_group_required
 def trip_plan_reject(request, pk):
     """Reject a trip plan with reason"""
-    trip_plan = get_object_or_404(TripPlan, pk=pk)
+    try:
+        trip_plan = TripPlan.objects.get(pk=pk)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan no longer exists.")
+        return redirect('adminpanel:trip_plans')
     
     if request.method == 'POST':
         trip_plan.status = 'rejected'
@@ -636,7 +662,11 @@ def trip_plan_reject(request, pk):
 @staff_and_group_required
 def trip_plan_edit(request, pk):
     """Admin edits trip plan and sends back to customer for review"""
-    trip_plan = get_object_or_404(TripPlan, pk=pk)
+    try:
+        trip_plan = TripPlan.objects.get(pk=pk)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan no longer exists.")
+        return redirect('adminpanel:trip_plans')
     
     if request.method == 'POST':
         import json
@@ -687,7 +717,11 @@ def trip_plan_edit(request, pk):
 @staff_and_group_required
 def trip_plan_convert_package(request, pk):
     """Convert trip plan to a package (public or private)"""
-    trip_plan = get_object_or_404(TripPlan, pk=pk)
+    try:
+        trip_plan = TripPlan.objects.get(pk=pk)
+    except TripPlan.DoesNotExist:
+        messages.warning(request, "This trip plan no longer exists.")
+        return redirect('adminpanel:trip_plans')
     
     if request.method == 'POST':
         is_public = request.POST.get('is_public') == 'true'

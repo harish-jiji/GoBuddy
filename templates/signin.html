@@ -176,10 +176,10 @@
           <form method="POST" action="{% url 'core:signin' %}" id="signinForm" class="space-y-6">
             {% csrf_token %}
             <div>
-              <label class="block text-sm font-medium text-gray-300 mb-2">Email Address</label>
+              <label class="block text-sm font-medium text-gray-300 mb-2">Email or Username</label>
               <div class="relative">
-                <input type="email" name="email" id="email" class="w-full px-4 py-3 pl-12 rounded-xl glass-effect text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Enter your email" required>
-                <i class="fas fa-envelope absolute left-4 top-4 text-gray-400"></i>
+                <input type="text" name="email" id="email" class="w-full px-4 py-3 pl-12 rounded-xl glass-effect text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="your@email.com or @username" required>
+                <i class="fas fa-user absolute left-4 top-4 text-gray-400"></i>
               </div>
             </div>
             
@@ -199,7 +199,7 @@
                 <input type="checkbox" name="remember" class="rounded border-gray-500 bg-transparent" id="rememberMe">
                 <span class="text-sm text-gray-300">Remember me</span>
               </label>
-              <a href="#" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">Forgot Password?</a>
+              <a href="{% url 'core:forgot_password' %}" class="text-sm text-blue-400 hover:text-blue-300 transition-colors">Forgot Password?</a>
             </div>
 
             <button type="submit" class="w-full gradient-bg rounded-xl py-3 font-semibold hover:opacity-90 transition-opacity ripple">
@@ -333,25 +333,17 @@
 
     // Form submission
     document.getElementById('signinForm').addEventListener('submit', function(e) {
-      e.preventDefault();
-      
       const email = document.getElementById('email').value;
       const password = document.getElementById('password').value;
       
       if (!email || !password) {
         showNotification('Please fill in all fields', 'error');
-        return;
-      }
-      
-      if (!isValidEmail(email)) {
-        showNotification('Please enter a valid email address', 'error');
+        e.preventDefault();
         return;
       }
       
       showNotification('Signing in...', 'info');
-      
-      // Submit the form
-      this.submit();
+      // No manual submit(), let the form handle it normally or e.preventDefault() was not used effectively here.
     });
 
     // Email validation

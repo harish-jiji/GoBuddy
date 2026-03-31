@@ -1,0 +1,73 @@
+{% extends 'customers/base.html' %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8">
+    <div class="flex items-center justify-between mb-8">
+        <div>
+            <h1 class="text-3xl font-bold text-white">Privacy Settings</h1>
+            <p class="text-gray-400">Control who can see your personal information</p>
+        </div>
+        <div class="flex space-x-2">
+            <a href="{% url 'customers:profile' %}" class="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">General</a>
+            <a href="{% url 'customers:security_settings' %}" class="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">Security</a>
+            <a href="{% url 'customers:privacy_settings' %}" class="px-4 py-2 bg-white/20 rounded-lg text-sm transition font-bold">Privacy</a>
+            <a href="{% url 'customers:notification_settings' %}" class="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm transition">Notifications</a>
+        </div>
+    </div>
+
+    <form method="POST" class="space-y-8">
+        {% csrf_token %}
+
+        <div class="customer-glass p-8 rounded-3xl border border-white/10">
+            <h2 class="text-xl font-bold text-white mb-6 flex items-center">
+                <i class="fas fa-user-shield mr-3 text-green-400"></i> Profile Visibility
+            </h2>
+            <p class="text-sm text-gray-400 mb-8">Note: Your name, username, and email will always be public to allow friends to find you.</p>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- PUBLIC -->
+                <label class="cursor-pointer group">
+                    <input type="radio" name="privacy_level" value="public" class="hidden peer" {% if profile.privacy_level == 'public' %}checked{% endif %}>
+                    <div class="p-6 rounded-2xl border border-white/10 bg-white/5 group-hover:bg-white/10 peer-checked:bg-green-500/10 peer-checked:border-green-500/50 transition">
+                        <div class="w-12 h-12 rounded-xl bg-green-500/20 flex items-center justify-center text-green-500 mb-4">
+                            <i class="fas fa-globe"></i>
+                        </div>
+                        <h3 class="font-bold text-white mb-2">Public</h3>
+                        <p class="text-[11px] text-gray-400">Everyone can see your full bio, location, and travel style.</p>
+                    </div>
+                </label>
+
+                <!-- FRIENDS -->
+                <label class="cursor-pointer group">
+                    <input type="radio" name="privacy_level" value="friends" class="hidden peer" {% if profile.privacy_level == 'friends' %}checked{% endif %}>
+                    <div class="p-6 rounded-2xl border border-white/10 bg-white/5 group-hover:bg-white/10 peer-checked:bg-blue-500/10 peer-checked:border-blue-500/50 transition">
+                        <div class="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400 mb-4">
+                            <i class="fas fa-user-friends"></i>
+                        </div>
+                        <h3 class="font-bold text-white mb-2">Friends Only</h3>
+                        <p class="text-[11px] text-gray-400">Only your connected friends can see your extended details.</p>
+                    </div>
+                </label>
+
+                <!-- PRIVATE -->
+                <label class="cursor-pointer group">
+                    <input type="radio" name="privacy_level" value="private" class="hidden peer" {% if profile.privacy_level == 'private' %}checked{% endif %}>
+                    <div class="p-6 rounded-2xl border border-white/10 bg-white/5 group-hover:bg-white/10 peer-checked:bg-red-500/10 peer-checked:border-red-500/50 transition">
+                        <div class="w-12 h-12 rounded-xl bg-red-500/20 flex items-center justify-center text-red-400 mb-4">
+                            <i class="fas fa-lock"></i>
+                        </div>
+                        <h3 class="font-bold text-white mb-2">Private</h3>
+                        <p class="text-[11px] text-gray-400">Only you can see your extended profile details.</p>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="flex justify-end pt-4">
+            <button type="submit" class="customer-gradient-bg px-8 py-4 rounded-2xl font-bold shadow-xl hover:scale-105 transition">
+                Update Privacy Level
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

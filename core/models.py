@@ -35,8 +35,23 @@ class GoUserManager(BaseUserManager):
 # ======================================================
 # CUSTOM USER MODEL
 # ======================================================
+from django.core.validators import RegexValidator
+
 class GoUser(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=150, blank=True)
+    username = models.CharField(
+        max_length=25, 
+        unique=True, 
+        null=True, 
+        blank=True,
+        validators=[
+            RegexValidator(
+                regex='^[a-z ]{4,25}$',
+                message='Username must be between 4 and 25 characters, lowercase only, spaces allowed.',
+                code='invalid_username'
+            )
+        ]
+    )
     email = models.EmailField(unique=True, max_length=255)
     phone = models.CharField(max_length=30, blank=True, null=True)
     profile_image = models.URLField(blank=True, null=True)
@@ -76,8 +91,6 @@ class GoUser(AbstractBaseUser, PermissionsMixin):
     special_offers = models.BooleanField(default=False)
 
     public_profile = models.BooleanField(default=True)
-    show_travel_history = models.BooleanField(default=True)
-    data_analytics = models.BooleanField(default=True)
     two_factor_enabled = models.BooleanField(default=False)
 
     profile_completed = models.BooleanField(default=False)
@@ -121,6 +134,8 @@ class GoUser(AbstractBaseUser, PermissionsMixin):
         return percent
 
     def save(self, *args, **kwargs):
+        if self.username:
+            self.username = self.username.lower()
         self.calculate_profile_completion()
         super().save(*args, **kwargs)
 

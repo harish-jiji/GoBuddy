@@ -65,9 +65,20 @@ class UserProfile(models.Model):
     special_offers = models.BooleanField(default=True)
 
     # PRIVACY
-    public_profile = models.BooleanField(default=True)
-    show_travel_history = models.BooleanField(default=True)
-    data_analytics = models.BooleanField(default=True)
+    PRIVACY_CHOICES = [
+        ('public', 'Public'),
+        ('private', 'Private'),
+        ('friends', 'Friends Only'),
+    ]
+    privacy_level = models.CharField(max_length=10, choices=PRIVACY_CHOICES, default='public')
+
+    # SECURITY QUESTIONS
+    security_q1 = models.CharField(max_length=255, blank=True, null=True)
+    security_a1 = models.CharField(max_length=255, blank=True, null=True)
+    security_q2 = models.CharField(max_length=255, blank=True, null=True)
+    security_a2 = models.CharField(max_length=255, blank=True, null=True)
+    security_q3 = models.CharField(max_length=255, blank=True, null=True)
+    security_a3 = models.CharField(max_length=255, blank=True, null=True)
 
     # PROFILE PROGRESS
     profile_completion_percentage = models.IntegerField(default=0)
@@ -92,7 +103,27 @@ def ensure_user_profile(sender, instance, created, **kwargs):
         UserProfile.objects.create(user=instance)
     else:
         instance.profile.save()
+# ============================================================
+# FRIENDSHIP MODEL
+# ============================================================
+class Friendship(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    from_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_friend_requests')
+    to_user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_friend_requests')
+    status = models.CharField(max_length=15, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        unique_together = ('from_user', 'to_user')
+
+    def __str__(self):
+        return f"{self.from_user.email} -> {self.to_user.email} ({self.status})"
 
 
 # ============================================================

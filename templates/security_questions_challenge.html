@@ -1,0 +1,84 @@
+{% extends 'customers/base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto py-20">
+    <div class="customer-glass p-12 rounded-4xl border border-white/10 shadow-3xl text-center space-y-10 relative overflow-hidden">
+        
+        <!-- Decorative Background Gradient -->
+        <div class="absolute -top-24 -right-24 w-48 h-48 bg-blue-500/20 blur-3xl rounded-full"></div>
+        <div class="absolute -bottom-24 -left-24 w-48 h-48 bg-purple-500/10 blur-3xl rounded-full"></div>
+
+        <div class="w-16 h-16 bg-blue-500/20 rounded-2xl flex items-center justify-center mx-auto text-blue-400 rotate-12 group-hover:rotate-0 transition-transform">
+            <i class="fas fa-key text-2xl"></i>
+        </div>
+
+        <div class="space-y-4">
+            <h1 class="text-3xl font-bold text-white">Security Verification</h1>
+            <p class="text-sm text-gray-400">Answer any <strong>one</strong> of your security questions correctly to reset your password.</p>
+        </div>
+
+        <form method="POST" action="{% url 'core:verify_security_questions' %}" class="space-y-8">
+            {% csrf_token %}
+            <input type="hidden" name="user_id" value="{{ user_id }}">
+
+            <!-- QUESTION 1 -->
+            <div id="q-block-1" class="q-block animate-slide-in">
+                <div class="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4 shadow-xl">
+                    <p class="text-blue-400 font-bold text-sm tracking-wide uppercase">Question 1</p>
+                    <h2 class="text-xl font-medium text-white">{{ user.profile.security_q1 }}</h2>
+                    <input type="text" name="a1" placeholder="Your answer..."
+                           class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 focus:outline-none focus:border-blue-500 transition text-white shadow-inner">
+                    <button type="button" onclick="showNext(1)" class="text-xs text-gray-500 hover:text-white transition flex items-center mx-auto">
+                        Don't know? Try another way <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- QUESTION 2 -->
+            <div id="q-block-2" class="q-block hidden animate-slide-in">
+                <div class="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4 shadow-xl">
+                    <p class="text-yellow-400 font-bold text-sm tracking-wide uppercase">Question 2</p>
+                    <h2 class="text-xl font-medium text-white">{{ user.profile.security_q2 }}</h2>
+                    <input type="text" name="a2" placeholder="Your answer..."
+                           class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 focus:outline-none focus:border-yellow-500 transition text-white shadow-inner">
+                    <button type="button" onclick="showNext(2)" class="text-xs text-gray-500 hover:text-white transition flex items-center mx-auto">
+                        Still not sure? Try Question 3 <i class="fas fa-arrow-right ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- QUESTION 3 -->
+            <div id="q-block-3" class="q-block hidden animate-slide-in">
+                <div class="p-6 rounded-3xl bg-white/5 border border-white/10 space-y-4 shadow-xl">
+                    <p class="text-green-400 font-bold text-sm tracking-wide uppercase">Question 3</p>
+                    <h2 class="text-xl font-medium text-white">{{ user.profile.security_q3 }}</h2>
+                    <input type="text" name="a3" placeholder="Your answer..."
+                           class="w-full bg-white/10 border border-white/20 rounded-2xl px-6 py-4 focus:outline-none focus:border-green-500 transition text-white shadow-inner">
+                    <button type="button" onclick="showNext(3)" class="text-xs text-gray-500 hover:text-white transition flex items-center mx-auto">
+                        Go back to start <i class="fas fa-undo ml-2"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-6">
+                <button type="submit" class="w-full customer-gradient-bg py-4 rounded-2xl font-bold shadow-2xl hover:scale-105 transition transform text-lg">
+                    Verify Identity
+                </button>
+                <div class="mt-8 pt-8 border-t border-white/10">
+                    <a href="{% url 'core:forgot_password' %}" class="text-sm text-gray-500 hover:text-white flex items-center justify-center transition">
+                        <i class="fas fa-chevron-left mr-2"></i> Try a Different Email 
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function showNext(current) {
+        document.getElementById(`q-block-${current}`).classList.add('hidden');
+        let next = (current % 3) + 1;
+        document.getElementById(`q-block-${next}`).classList.remove('hidden');
+    }
+</script>
+{% endblock %}

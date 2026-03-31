@@ -86,7 +86,7 @@
     <!-- ===================== MESSAGES LIST ===================== -->
     <div id="messagesContainer" class="space-y-4">
 
-        {% for m in messages %}
+        {% for m in user_messages %}
         <div class="glass p-6 rounded-xl hover-lift message-card"
              data-text="{{ m.subject }} {{ m.body }} {{ m.get_category_display }}">
             

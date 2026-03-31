@@ -29,7 +29,18 @@ urlpatterns = [
     path('inbox/', views.inbox, name='inbox'),
 
     # Profile
+    # Profile & Settings
     path('profile/', views.profile, name='profile'),
+    path('profile/security/', views.security_settings, name='security_settings'),
+    path('profile/privacy/', views.privacy_settings, name='privacy_settings'),
+    path('profile/notifications/', views.notification_settings, name='notification_settings'),
+
+    # Friends System
+    path('friends/', views.friends_list, name='friends_list'),
+    path('friends/search/', views.search_friends, name='search_friends'),
+    path('friends/request/<int:user_id>/', views.send_friend_request, name='send_friend_request'),
+    path('friends/accept/<int:request_id>/', views.accept_friend_request, name='accept_friend_request'),
+    path('friends/reject/<int:request_id>/', views.reject_friend_request, name='reject_friend_request'),
 
     # Trip Management
     path('my-trips/', views.my_trips, name='my_trips'),

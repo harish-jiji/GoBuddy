@@ -1,44 +1,25 @@
 {% extends 'customers/base.html' %}
 {% block content %}
 
+<!-- Leaflet & Routing -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+
 <style>
-    * {
-        font-family: 'Inter', sans-serif;
-    }
-
-    .planner-container {
-        /* background-color: #0f172a; */
-        /* color: white; */
-        border-radius: 1rem;
-        padding-bottom: 10rem;
-    }
-
-    .glass {
-        background: rgba(255, 255, 255, 0.08);
-        backdrop-filter: blur(12px);
-        border-radius: 14px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .gradient {
-        background: linear-gradient(135deg, #667eea, #764ba2);
-    }
-
-    .selected-destination {
-        border: 2px solid #667eea !important;
-        box-shadow: 0 0 20px rgba(102, 126, 234, .5);
-    }
-
-    .destination-card {
-        transition: .3s
-    }
-
-    .destination-card:hover {
-        transform: translateY(-4px);
-    }
+    * { font-family: 'Inter', sans-serif; }
+    .planner-container { border-radius: 1rem; padding-bottom: 10rem; }
+    .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.05); border-radius: 14px; }
+    .gradient { background: linear-gradient(135deg, #3b82f6 0%, #ec4899 100%); }
+    .selected-destination { border: 2px solid #3b82f6 !important; background: rgba(59, 130, 246, 0.1) !important; }
+    .destination-card { transition: .3s }
+    .destination-card:hover { transform: translateY(-4px); }
+    #map { height: 450px; border-radius: 14px; z-index: 10; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .leaflet-routing-container { display: none !important; }
 </style>
 
-<div class="planner-container max-w-6xl mx-auto">
+<div class="planner-container max-w-7xl mx-auto px-4">
 
     <form method="post" action="{% url 'customers:save_trip' %}" id="tripPlanForm"
         onsubmit="return saveItineraryJSON()">
@@ -58,605 +39,507 @@
         <input type="hidden" name="itinerary_json" id="itineraryJson">
         <input type="hidden" name="status" id="statusInput" value="draft">
 
-        <!-- ================================================= -->
-        <!-- HEADER -->
-        <!-- ================================================= -->
         <div class="glass p-6 text-center mb-8 relative overflow-hidden">
             <div class="absolute inset-0 bg-gradient-to-r from-blue-600/20 to-purple-600/20"></div>
-            <h1 class="text-3xl font-bold relative z-10 text-white">
-                Plan Your Dream Trip
-            </h1>
+            <h1 class="text-3xl font-bold relative z-10 text-white">Plan Your Dream Trip</h1>
         </div>
 
-        <!-- ================================================= -->
-        <!-- BASIC INFO -->
-        <!-- ================================================= -->
-        <div class="glass p-6 mb-8 border-l-4 border-blue-500">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                <div class="col-span-1 md:col-span-2">
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Trip Title *</label>
-                    <input type="text" name="title" required placeholder="e.g. Summer Vacation in Kerala"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Accommodation Preference</label>
-                    <select name="accommodation"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        <option value="hotel_3star">3 Star Hotel</option>
-                        <option value="hotel_4star">4 Star Hotel</option>
-                        <option value="hotel_5star">5 Star Hotel</option>
-                        <option value="resort">Resort</option>
-                        <option value="homestay">Homestay</option>
-                        <option value="villa">Private Villa</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Transportation Mode</label>
-                    <select name="transportation"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        <option value="car">Private Car</option>
-                        <option value="bus">Bus (AC Volvo)</option>
-                        <option value="train">Train</option>
-                        <option value="flight">Flight</option>
-                        <option value="mixed">Mixed Mode</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Meals Plan</label>
-                    <select name="meals"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                        <option value="breakfast">Breakfast Only</option>
-                        <option value="breakfast_dinner">Breakfast & Dinner</option>
-                        <option value="all_meals">All Meals</option>
-                        <option value="no_meals">No Meals</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Budget (₹)</label>
-                    <input type="number" name="budget" placeholder="Estimated Budget"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Estimated Cost (₹)</label>
-                    <div class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-green-400 font-bold"
-                        id="totalCostDisplay">0</div>
-                    <input type="hidden" name="estimated_cost" id="estimatedCostInput">
-                </div>
-
-                <div>
-                    <label class="block text-xs uppercase text-gray-400 mb-2">Travelers</label>
-                    <input type="number" name="travelers" value="2" min="1"
-                        class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
-                </div>
-
-            </div>
-        </div>
-
-        <!-- ================================================= -->
-        <!-- DESTINATIONS -->
-        <!-- ================================================= -->
-        <div class="glass p-6 mb-8 border-l-4 border-blue-500">
-            <h3 class="text-xl font-bold mb-4 text-white">Select Destinations</h3>
-
-            <input type="hidden" name="destination_ids" id="destinationIdsInput">
-
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {% for dest in destinations %}
-                <div class="glass destination-card cursor-pointer" data-id="{{ dest.id }}" data-name="{{ dest.name }}"
-                    onclick="toggleDestination(this)">
-                    <div class="relative h-32">
-                        {% if dest.image %}
-                        <img src="{{ dest.image.url }}" class="absolute inset-0 w-full h-full object-cover">
-                        {% endif %}
-                        <div class="absolute inset-0 bg-black/40"></div>
-                        <div class="absolute bottom-2 left-3">
-                            <h4 class="font-bold text-white">{{ dest.name }}</h4>
-                            <p class="text-xs text-gray-300">{{ dest.get_state_display }}</p>
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div class="lg:col-span-12">
+                <div class="glass p-6 mb-8 border-l-4 border-blue-500">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="col-span-1 md:col-span-2">
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Trip Title *</label>
+                            <input type="text" name="title" required placeholder="e.g. Summer Vacation in Kerala"
+                                class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
                         </div>
-                        <div class="absolute top-2 right-2 destination-checkbox hidden">
-                            <i class="fas fa-check-circle text-blue-400 text-xl bg-white rounded-full"></i>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Accommodation Preference</label>
+                            <select name="accommodation" class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
+                                <option value="hotel_3star">3 Star Hotel</option>
+                                <option value="hotel_4star">4 Star Hotel</option>
+                                <option value="hotel_5star">5 Star Hotel</option>
+                                <option value="resort">Resort</option>
+                                <option value="homestay">Homestay</option>
+                                <option value="villa">Private Villa</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Transportation Mode</label>
+                            <select name="transportation" class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
+                                <option value="car">Private Car</option>
+                                <option value="bus">Bus (AC Volvo)</option>
+                                <option value="train">Train</option>
+                                <option value="flight">Flight</option>
+                                <option value="mixed">Mixed Mode</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Meals Plan</label>
+                            <select name="meals" class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
+                                <option value="breakfast">Breakfast Only</option>
+                                <option value="breakfast_dinner">Breakfast & Dinner</option>
+                                <option value="all_meals">All Meals</option>
+                                <option value="no_meals">No Meals</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Travelers</label>
+                            <input type="number" name="travelers" value="2" min="1" class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Budget Limit (₹)</label>
+                            <input type="number" name="budget" placeholder="Estimated Budget" class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white">
+                        </div>
+                        <div>
+                            <label class="block text-xs uppercase text-gray-400 mb-2">Calculated Trip Cost (₹)</label>
+                            <div class="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-green-400 font-bold" id="totalCostDisplay">0</div>
+                            <input type="hidden" name="estimated_cost" id="estimatedCostInput">
                         </div>
                     </div>
                 </div>
-                {% endfor %}
+
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-8 mb-8">
+                    <div class="md:col-span-7">
+                        <div class="glass p-6 border-l-4 border-blue-500 h-full">
+                            <h3 class="text-xl font-bold mb-4 text-white">Select Destinations</h3>
+                            <input type="hidden" name="destination_ids" id="destinationIdsInput">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[500px] overflow-y-auto pr-2">
+                                {% for dest in destinations %}
+                                <div class="destination-card relative h-28 rounded-2xl overflow-hidden cursor-pointer group shadow-lg transition-all duration-500 hover:shadow-blue-500/20" 
+                                     data-id="{{ dest.id }}" data-name="{{ dest.name }}" data-lat="{{ dest.latitude|default:0 }}" data-lng="{{ dest.longitude|default:0 }}">
+                                     <div class="absolute inset-0" onclick="toggleDestination(this.closest('.destination-card'))">
+                                         {% if dest.image %}
+                                         <img src="{{ dest.image.url }}" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110">
+                                         {% endif %}
+                                         <div class="absolute inset-0 bg-gradient-to-t from-[#0f172a] via-transparent to-transparent opacity-90"></div>
+                                     </div>
+                                     
+                                     <!-- Usage Badge -->
+                                     <div class="count-badge hidden absolute top-3 left-3 bg-blue-600 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-xl border border-white/20 z-10">
+                                         x1
+                                     </div>
+
+                                     <div class="absolute bottom-3 left-3 right-3 pointer-events-none">
+                                         <h4 class="text-white text-xs font-bold truncate">{{ dest.name }}</h4>
+                                         <p class="text-blue-400 text-[9px]">{{ dest.get_state_display }}</p>
+                                     </div>
+
+                                     <!-- Multi-select Controls -->
+                                     <div class="absolute top-3 right-3 flex flex-col gap-2 z-20">
+                                         <button type="button" onclick="changeDestinationCount(this.closest('.destination-card'), 1)" class="w-7 h-7 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg flex items-center justify-center hover:bg-blue-600 hover:border-blue-500 transition-all">
+                                             <i class="fas fa-plus text-[10px]"></i>
+                                         </button>
+                                         <button type="button" onclick="changeDestinationCount(this.closest('.destination-card'), -1)" class="w-7 h-7 bg-white/10 backdrop-blur-md border border-white/20 text-white rounded-lg flex items-center justify-center hover:bg-red-600 hover:border-red-500 transition-all">
+                                             <i class="fas fa-minus text-[10px]"></i>
+                                         </button>
+                                     </div>
+                                 </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-5">
+                        <div class="glass p-6 border-l-4 border-pink-500 h-full">
+                            <h3 class="text-white text-xl font-bold mb-4">Location Finder</h3>
+                            <div class="relative mb-6 flex gap-2">
+                                <input type="text" id="mapSearchInput" placeholder="Where to in India?" 
+                                    class="flex-1 bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-sm text-white focus:ring-2 focus:ring-blue-500 outline-none backdrop-blur-xl">
+                                <button type="button" onclick="searchOnMap()" class="bg-blue-600 text-white px-8 py-4 rounded-2xl hover:bg-blue-700 transition shadow-xl shadow-blue-500/20">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                            <div id="map" class="h-[432px] rounded-3xl overflow-hidden border border-white/5 shadow-2xl"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass p-6 mb-8 border-l-4 border-purple-500">
+                    <h3 class="text-xl font-bold mb-4 text-white">Duration</h3>
+                    <div class="flex items-center gap-4">
+                        <button type="button" onclick="changeDays(-1)" class="glass px-4 py-2 text-white">−</button>
+                        <div class="text-3xl font-bold text-blue-400" id="daysDisplay">3</div>
+                        <button type="button" onclick="changeDays(1)" class="glass px-4 py-2 text-white">+</button>
+                    </div>
+                    <input type="hidden" name="number_of_days" id="numberOfDaysInput" value="3">
+                </div>
+
+                <div id="daysContainer" class="space-y-12"></div>
             </div>
         </div>
 
-        <!-- ================================================= -->
-        <!-- DURATION -->
-        <!-- ================================================= -->
-        <div class="glass p-6 mb-8 border-l-4 border-purple-500">
-            <h3 class="text-xl font-bold mb-4 text-white">Duration</h3>
-
-            <div class="flex items-center gap-4">
-                <button type="button" onclick="changeDays(-1)" class="glass px-4 py-2 text-white">−</button>
-                <div class="text-3xl font-bold text-blue-400" id="daysDisplay">3</div>
-                <button type="button" onclick="changeDays(1)" class="glass px-4 py-2 text-white">+</button>
-            </div>
-
-            <input type="hidden" name="number_of_days" id="numberOfDaysInput" value="3">
-        </div>
-
-        <!-- ================================================= -->
-        <!-- ITINERARY -->
-        <!-- ================================================= -->
-        <div id="daysContainer" class="space-y-12"></div>
-
-        <!-- ================================================= -->
-        <!-- ACTIONS -->
-        <!-- ================================================= -->
-        <div class="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 p-4 flex justify-center gap-4 border-t z-50">
+        <div class="fixed bottom-0 left-0 right-0 bg-[#0f172a]/95 p-4 flex justify-center gap-4 border-t z-[1000]">
             <a href="{% url 'customers:my_trips' %}" class="glass px-8 py-3 rounded-lg text-white">Cancel</a>
-
-            <button type="submit" onclick="setStatus('draft')"
-                class="border border-white/20 bg-white/5 text-white px-10 py-3 rounded-lg font-bold hover:bg-white/10 transition">
-                Save Draft
-            </button>
-
-            <button type="submit" onclick="setStatus('pending')"
-                class="gradient px-10 py-3 rounded-lg font-bold text-white shadow-lg hover:shadow-xl transition transform hover:-translate-y-1">
-                Request Approval
-            </button>
+            <button type="submit" onclick="setStatus('draft')" class="border border-white/20 bg-white/5 text-white px-10 py-3 rounded-lg font-bold">Save Draft</button>
+            <button type="submit" onclick="setStatus('pending')" class="gradient px-10 py-3 rounded-lg font-bold text-white shadow-lg">Request Approval</button>
         </div>
-
     </form>
 </div>
 
-<!-- HELPERS -->
 {{ destinations_data|json_script:"all-destinations-data" }}
 <script>
-    // Convert destinations to format expected by JS
-    let allDestinations = [];
-    try {
-        const destData = document.getElementById('all-destinations-data');
-        if (destData && destData.textContent) {
-            allDestinations = JSON.parse(destData.textContent);
-            if (!Array.isArray(allDestinations)) {
-                allDestinations = [];
+    const destData = JSON.parse(document.getElementById('all-destinations-data').textContent);
+    let map, routingControl, markers = {};
+    let itineraryData = Array.from({length: 3}, (_, i) => ({ day: i + 1, start_location: '', start_time: '09:00', items: [] }));
+    let TRIP_DAYS = 3;
+
+    function initMap() {
+        map = L.map('map').setView([20.5937, 78.9620], 5);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '&copy; CARTO' }).addTo(map);
+        routingControl = L.Routing.control({
+            waypoints: [],
+            router: L.Routing.osrmv1({
+                serviceUrl: 'https://router.project-osrm.org/route/v1'
+            }),
+            show: false,
+            addWaypoints: false,
+            routeWhileDragging: false,
+            lineOptions: { styles: [{ color: '#2563eb', weight: 4, opacity: 0.8 }] }
+        }).addTo(map);
+    }
+
+    function changeDestinationCount(card, delta) {
+        const name = card.dataset.name;
+        const lat = parseFloat(card.dataset.lat);
+        const lng = parseFloat(card.dataset.lng);
+        
+        if (delta > 0) {
+            if (!itineraryData[0].items) itineraryData[0].items = [];
+            itineraryData[0].items.push({ item_type: 'location', name: name, lat: lat, lng: lng });
+            map.flyTo([lat, lng], 10);
+        } else {
+            for (let d = itineraryData.length - 1; d >= 0; d--) {
+                const idx = itineraryData[d].items.findLastIndex(i => i.item_type === 'location' && i.name === name);
+                if (idx > -1) {
+                    itineraryData[d].items.splice(idx, 1);
+                    break;
+                }
             }
         }
-    } catch (error) {
-        console.error('Error parsing destinations:', error);
-        allDestinations = [];
-    }
-    const ALL_DESTINATIONS = allDestinations.map(d => ({
-        id: d.id || d.pk,
-        name: d.name || '',
-        state: d.state || d.get_state_display || ''
-    }));
-</script>
-
-<script>
-    // --- DATA INITIALIZATION ---
-    let TRIP_DESTINATIONS = []; // Will be populated from selected destinations
-    let TRIP_START_LOC = '';
-    let TRIP_DAYS = 3;
-    let SAVED_ITINERARY_RAW = [];
-
-    // Selected destinations array
-    let selectedDestinations = [];
-
-    let itineraryData = [];
-
-    // Get sub-type options based on main type
-    function getSubTypeOptions(mainType) {
-        const options = {
-            'travel': [
-                { value: 'car', label: 'Car/Taxi' },
-                { value: 'bus', label: 'Bus' },
-                { value: 'train', label: 'Train' },
-                { value: 'flight', label: 'Flight' },
-                { value: 'bike', label: 'Bike' },
-                { value: 'walk', label: 'Walk' }
-            ],
-            'food': [
-                { value: 'restaurant', label: 'Restaurant' },
-                { value: 'hotel_3star', label: '3 Star Hotel' },
-                { value: 'hotel_4star', label: '4 Star Hotel' },
-                { value: 'hotel_5star', label: '5 Star Hotel' },
-                { value: 'street_food', label: 'Street Food' },
-                { value: 'cafe', label: 'Cafe' }
-            ],
-            'accommodation': [
-                { value: 'hotel_3star', label: '3 Star Hotel' },
-                { value: 'hotel_4star', label: '4 Star Hotel' },
-                { value: 'hotel_5star', label: '5 Star Hotel' },
-                { value: 'resort', label: 'Resort' },
-                { value: 'homestay', label: 'Homestay' },
-                { value: 'villa', label: 'Private Villa' },
-                { value: 'hostel', label: 'Hostel' }
-            ],
-            'sightseeing': [
-                { value: 'monument', label: 'Monument' },
-                { value: 'temple', label: 'Temple' },
-                { value: 'museum', label: 'Museum' },
-                { value: 'park', label: 'Park' },
-                { value: 'beach', label: 'Beach' },
-                { value: 'viewpoint', label: 'Viewpoint' }
-            ],
-            'adventure': [
-                { value: 'trekking', label: 'Trekking' },
-                { value: 'water_sports', label: 'Water Sports' },
-                { value: 'paragliding', label: 'Paragliding' },
-                { value: 'rafting', label: 'Rafting' },
-                { value: 'bungee', label: 'Bungee Jumping' }
-            ],
-            'shopping': [
-                { value: 'market', label: 'Market' },
-                { value: 'mall', label: 'Mall' },
-                { value: 'handicraft', label: 'Handicraft Store' },
-                { value: 'souvenir', label: 'Souvenir Shop' }
-            ]
-        };
-        return options[mainType] || [{ value: 'other', label: 'Other' }];
-    }
-
-    // Destination selection handlers
-    function toggleDestination(el) {
-        const id = parseInt(el.dataset.id);
-        const name = el.dataset.name;
-
-        // Check if already selected
-        const index = selectedDestinations.findIndex(d => d.id === id);
-        const checkbox = el.querySelector('.destination-checkbox');
-
-        if (index > -1) {
-            // Remove
-            selectedDestinations.splice(index, 1);
-            el.classList.remove('selected-destination');
-            if (checkbox) checkbox.classList.add('hidden');
-        } else {
-            // Add
-            selectedDestinations.push({ id, name });
-            el.classList.add('selected-destination');
-            if (checkbox) checkbox.classList.remove('hidden');
-        }
-
-        // Update TRIP_DESTINATIONS for location dropdowns
-        TRIP_DESTINATIONS = selectedDestinations.map(d => {
-            return ALL_DESTINATIONS.find(ad => ad.id === d.id);
-        }).filter(d => d);
-
-        // Update destination IDs input
-        const destinationIdsInput = document.getElementById('destinationIdsInput');
-        if (destinationIdsInput) {
-            destinationIdsInput.value = selectedDestinations.map(d => d.id).join(',');
-        }
-
-        // Re-render itinerary to update location dropdowns
+        updateDestinationCounts();
         renderItinerary();
+    }
+
+    function toggleDestination(el) {
+        changeDestinationCount(el, 1);
+    }
+
+    function updateDestinationCounts() {
+        const counts = {};
+        itineraryData.forEach(day => {
+            day.items.forEach(item => {
+                if (item.item_type === 'location') counts[item.name] = (counts[item.name] || 0) + 1;
+            });
+        });
+
+        document.querySelectorAll('.destination-card').forEach(card => {
+            const name = card.dataset.name;
+            const count = counts[name] || 0;
+            const badge = card.querySelector('.count-badge');
+            if (count > 0) {
+                card.classList.add('ring-2', 'ring-blue-500');
+                badge.innerText = `x${count}`;
+                badge.classList.remove('hidden');
+            } else {
+                card.classList.remove('ring-2', 'ring-blue-500');
+                badge.classList.add('hidden');
+            }
+        });
+
+        const uniqueIds = [];
+        itineraryData.forEach(day => day.items.forEach(item => {
+             if (item.item_type === 'location') {
+                 const card = document.querySelector(`.destination-card[data-name="${item.name}"]`);
+                 if (card && !uniqueIds.includes(card.dataset.id)) uniqueIds.push(card.dataset.id);
+             }
+        }));
+        document.getElementById('destinationIdsInput').value = uniqueIds.join(',');
     }
 
     function changeDays(delta) {
         TRIP_DAYS = Math.max(1, Math.min(30, TRIP_DAYS + delta));
-        const daysDisplay = document.getElementById('daysDisplay');
-        const numberOfDaysInput = document.getElementById('numberOfDaysInput');
-
-        if (daysDisplay) daysDisplay.innerText = TRIP_DAYS;
-        if (numberOfDaysInput) numberOfDaysInput.value = TRIP_DAYS;
-
-        // Update itinerary data structure
+        document.getElementById('daysDisplay').innerText = TRIP_DAYS;
+        document.getElementById('numberOfDaysInput').value = TRIP_DAYS;
         updateItineraryDays();
     }
 
+    async function searchOnMap() {
+        const query = document.getElementById('mapSearchInput').value;
+        if (!query) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=in&limit=1`);
+        const data = await res.json();
+        if (data.length > 0) {
+            const { lat, lon, display_name } = data[0];
+            const name = display_name.split(',')[0];
+            const flat = parseFloat(lat);
+            const flon = parseFloat(lon);
+            map.flyTo([flat, flon], 13);
+            addLocationFromMap(flat, flon, name);
+        } else {
+            alert('Location not found in India.');
+        }
+    }
+
+    function addLocationFromMap(lat, lng, name) {
+        if (!itineraryData[0].items) itineraryData[0].items = [];
+        itineraryData[0].items.push({ item_type: 'location', name: name, lat: lat, lng: lng });
+        updateDestinationCounts();
+        renderItinerary();
+    }
+
+    function saveItineraryJSON() {
+        document.getElementById('itineraryJson').value = JSON.stringify(itineraryData);
+        return true;
+    }
+
     function updateItineraryDays() {
-        // Ensure we have the right number of days
         while (itineraryData.length < TRIP_DAYS) {
-            itineraryData.push({
-                day: itineraryData.length + 1,
-                start_location: '',
-                start_time: '09:00',
-                items: [],
-                end_location: ''
-            });
+            itineraryData.push({ day: itineraryData.length + 1, start_location: '', start_time: '09:00', items: [] });
         }
-
-        // Remove extra days
-        if (itineraryData.length > TRIP_DAYS) {
-            itineraryData = itineraryData.slice(0, TRIP_DAYS);
-        }
-
+        if (itineraryData.length > TRIP_DAYS) itineraryData = itineraryData.slice(0, TRIP_DAYS);
         renderItinerary();
     }
 
-    // Initialize logic
     function init() {
-        // Initialize days
-        const daysDisplay = document.getElementById('daysDisplay');
-        const numberOfDaysInput = document.getElementById('numberOfDaysInput');
-
-        // New trip
-        generateNewItinerary();
-
-        if (daysDisplay) daysDisplay.innerText = TRIP_DAYS;
-        if (numberOfDaysInput) numberOfDaysInput.value = TRIP_DAYS;
-
+        initMap();
+        updateItineraryDays();
         renderItinerary();
     }
 
-    function generateNewItinerary() {
-        itineraryData = [];
-        for (let i = 1; i <= TRIP_DAYS; i++) {
-            itineraryData.push({
-                day: i,
-                start_location: '',
-                start_time: '09:00',
-                items: [],
-                end_location: ''
-            });
-        }
-    }
-
-    // --- RENDER LOGIC ---
     function renderItinerary() {
         const container = document.getElementById('daysContainer');
         if (!container) return;
 
-        // Build all HTML
-        let allDaysHtml = '';
+        container.innerHTML = itineraryData.map((day, index) => {
+            const locations = day.items.filter(i => i.item_type === 'location' && i.name);
+            if (locations.length > 0) {
+                day.start_location = locations[0].name;
+                day.end_location = locations[locations.length - 1].name;
+            }
+            updateDestinationCounts();
 
-        itineraryData.forEach((day, index) => {
-            if (!day.items) day.items = [];
-            if (!day.day) day.day = index + 1;
-
-            const dayHtml = `
+            return `
             <div class="day-section relative pl-8" data-day-index="${index}">
-                <!-- Vertical Line -->
-                <div class="absolute left-[3px] top-0 bottom-0 w-0.5 bg-white/10 timeline-connector"></div>
-                <!-- Node -->
-                <div class="absolute -left-[6px] top-0 w-5 h-5 bg-blue-500 border-4 border-[#0f172a] rounded-full z-10"></div>
-
-                <div class="glass p-5 mb-12 border-l-4 border-blue-500">
-                    <!-- HEADER -->
+                <div class="absolute left-[3px] top-0 bottom-0 w-0.5 bg-white/10"></div>
+                <div class="absolute -left-[6px] top-0 w-5 h-5 bg-blue-500 border-4 border-[#0f172a] rounded-full z-10 shadow-lg shadow-blue-500/20"></div>
+                <div class="glass p-6 mb-12 border-l-4 border-blue-500 relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-2 opacity-10 pointer-events-none">
+                        <i class="fas fa-calendar-day text-6xl text-white"></i>
+                    </div>
                     <div class="flex justify-between items-center mb-6 border-b border-white/5 pb-4">
                         <h2 class="text-2xl font-bold text-white flex items-center gap-3">
                             <span class="bg-blue-600/20 text-blue-400 text-sm px-3 py-1 rounded-full border border-blue-500/30">Day ${day.day}</span>
-                            <span class="text-gray-300 text-lg">Itinerary</span>
                         </h2>
-                        <div class="text-right">
-                            <div class="text-xs text-gray-400 uppercase tracking-wider mb-1">Total Items</div>
-                            <div class="text-xl font-bold text-white">${day.items.length}</div>
-                        </div>
                     </div>
-
-                    <!-- START LOCATION -->
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="text-[10px] text-green-400 uppercase font-bold mb-1 block">Start Location</label>
-                            <input type="text" value="${day.start_location || ''}" 
-                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-green-500 transition"
-                                placeholder="Where does the day start?"
-                                oninput="updateDayField(${index}, 'start_location', this.value)">
+                    <div class="grid grid-cols-1 gap-6 mb-8">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-[10px] text-blue-400 uppercase font-bold mb-1.5 block tracking-widest">Starting Point</label>
+                                <input type="text" value="${day.start_location || ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-blue-500 transition-colors" placeholder="Start..." oninput="itineraryData[${index}].start_location = this.value">
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-pink-400 uppercase font-bold mb-1.5 block tracking-widest">Ending Point</label>
+                                <input type="text" value="${day.end_location || ''}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-pink-500 transition-colors" placeholder="End..." oninput="itineraryData[${index}].end_location = this.value">
+                            </div>
                         </div>
                         <div>
-                            <label class="text-[10px] text-gray-400 uppercase font-bold mb-1 block">Start Time</label>
-                            <input type="time" value="${day.start_time || '09:00'}"
-                                class="w-full bg-black/20 border-b border-white/20 px-3 py-2 text-white outline-none focus:border-blue-500 transition"
-                                onchange="updateDayField(${index}, 'start_time', this.value)">
+                            <label class="text-[10px] text-gray-400 uppercase font-bold mb-1.5 block tracking-widest">Start Time</label>
+                            <input type="time" value="${day.start_time || '09:00'}" class="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none" onchange="itineraryData[${index}].start_time = this.value">
                         </div>
                     </div>
-
-                    <!-- ITEMS LIST -->
-                    <div class="space-y-4 relative pl-6 mb-4">
-                        <div class="absolute left-[10px] top-2 bottom-2 w-px bg-gray-700 bg-dashed"></div>
+                    <div class="space-y-6 mb-8">
                         ${renderItems(day.items, index)}
                     </div>
-                    
-                    <!-- ADD BUTTONS -->
-                    <div class="flex gap-2 mb-4">
-                        <button type="button" onclick="addLocation(${index})"
-                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-blue-500 hover:bg-blue-500/5 transition flex items-center justify-center gap-2 text-sm">
-                            <i class="fas fa-map-marker-alt"></i> Add Location
+                    <div class="flex gap-4 pt-6 border-t border-white/5">
+                        <button type="button" onclick="addItem(${index}, 'location')" class="flex-1 py-3 bg-blue-600/10 text-blue-400 font-bold border border-blue-500/20 rounded-xl hover:bg-blue-600/20 transition flex items-center justify-center gap-2">
+                             <i class="fas fa-plus"></i> Location
                         </button>
-                        <button type="button" onclick="addActivity(${index})"
-                            class="flex-1 py-2 border-2 border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-green-500 hover:bg-green-500/5 transition flex items-center justify-center gap-2 text-sm">
-                            <i class="fas fa-plus"></i> Add Activity
+                        <button type="button" onclick="addItem(${index}, 'activity')" class="flex-1 py-3 bg-pink-600/10 text-pink-400 font-bold border border-pink-500/20 rounded-xl hover:bg-pink-600/20 transition flex items-center justify-center gap-2">
+                            <i class="fas fa-plus"></i> Activity
                         </button>
                     </div>
                 </div>
             </div>`;
-            allDaysHtml += dayHtml;
+        }).join('');
+        calculateTotalCost();
+        updateMapMarkers();
+    }
+
+    function updateMapMarkers() {
+        Object.values(markers).forEach(m => map.removeLayer(m));
+        markers = {};
+        const waypoints = [];
+
+        itineraryData.forEach((day, dIdx) => {
+            day.items.forEach((item, iIdx) => {
+                if (item.lat && item.lng) {
+                    const latlng = L.latLng(item.lat, item.lng);
+                    const m = L.marker(latlng).addTo(map).bindPopup(`<b>Day ${dIdx+1}</b>: ${item.name}`);
+                    markers[`${dIdx}-${iIdx}`] = m;
+                    waypoints.push(latlng);
+                }
+            });
         });
 
-        container.innerHTML = allDaysHtml;
-        calculateTotalCost();
+        if (routingControl) routingControl.setWaypoints(waypoints);
+    }
+
+    function getSubTypeOptions(mainType) {
+        const options = {
+            'travel': [{ value: 'car', label: 'Car/Taxi' }, { value: 'bus', label: 'Bus' }, { value: 'train', label: 'Train' }, { value: 'flight', label: 'Flight' }],
+            'food': [{ value: 'restaurant', label: 'Restaurant' }, { value: 'hotel_3star', label: 'Hotel Dining' }],
+            'accommodation': [{ value: 'hotel_3star', label: '3-Star' }, { value: 'hotel_5star', label: '5-Star' }, { value: 'resort', label: 'Resort' }],
+            'sightseeing': [{ value: 'monument', label: 'Monument' }, { value: 'temple', label: 'Temple' }, { value: 'park', label: 'Park' }]
+        };
+        return options[mainType] || [{ value: 'other', label: 'Other' }];
+    }
+
+    function getActivityIcon(type, subType) {
+        if (type === 'location') return 'fa-map-marker-alt';
+        const icons = {
+            'sightseeing': 'fa-camera', 'travel': 'fa-route', 'food': 'fa-utensils',
+            'accommodation': 'fa-hotel'
+        };
+        const subIcons = {
+            'car': 'fa-taxi', 'bus': 'fa-bus', 'train': 'fa-train', 'flight': 'fa-plane',
+            'restaurant': 'fa-utensils', 'hotel_3star': 'fa-hotel', 'hotel_5star': 'fa-hotel',
+            'monument': 'fa-monument', 'temple': 'fa-om', 'park': 'fa-tree', 'resort': 'fa-umbrella-beach'
+        };
+        return subIcons[subType] || icons[type] || 'fa-dot-circle';
     }
 
     function renderItems(items, dayIndex) {
-        if (!items || items.length === 0) return '<div class="text-xs text-gray-500 italic pl-4">No items added. Add a location first, then activities.</div>';
-
+        if (!items || items.length === 0) return '<div class="text-[10px] text-gray-500 italic pl-4">No plans yet. Choose from "Select Destinations" or click Add below.</div>';
         return items.map((item, itemIndex) => {
-            const itemType = item.item_type || 'activity';
-
-            if (itemType === 'location') {
-                let destOptions = '<option value="">Select Destination</option>';
-                if (TRIP_DESTINATIONS.length > 0) {
-                    TRIP_DESTINATIONS.forEach(d => {
-                        const safeName = (d.name || '').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-                        destOptions += `<option value="${d.id}" ${item.destination_id == d.id ? 'selected' : ''}>${safeName}</option>`;
-                    });
-                }
-
-                return `
-                <div class="relative flex items-start gap-3 mb-4 group">
-                    <div class="w-3 h-3 rounded-full bg-blue-500 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(59,130,246,0.5)]"></div>
-                    <div class="flex-1 bg-blue-500/10 border-l-2 border-blue-500 rounded-r-lg p-3">
-                        <div class="flex justify-between mb-2">
-                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Location Name"
-                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-blue-500 outline-none w-3/4"
-                                 oninput="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
-                            <button type="button" onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
-                        </div>
-                        <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
-                                onchange="handleLocationSelect(${dayIndex}, ${itemIndex}, this.value)">
-                            ${destOptions}
-                        </select>
+            const isLoc = item.item_type === 'location';
+            const icon = getActivityIcon(isLoc ? 'location' : item.type, item.sub_type);
+            return `
+            <div class="relative flex items-start gap-4 animate-fadeIn transition-all group">
+                <div class="flex flex-col items-center gap-1">
+                    <button type="button" onclick="reorder(${dayIndex}, ${itemIndex}, -1)" class="text-white/20 hover:text-blue-400 transition-colors"><i class="fas fa-chevron-up text-[10px]"></i></button>
+                    <div class="w-12 h-12 rounded-full ${isLoc ? 'bg-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.4)]' : 'bg-pink-600 shadow-[0_0_15px_rgba(219,39,119,0.4)]'} flex items-center justify-center text-white text-lg z-10 transition-transform group-hover:scale-110">
+                        <i class="fas ${icon}"></i>
                     </div>
-                </div>`;
-            } else {
-                // Activity
-                const mainType = item.type || 'sightseeing';
-                const subTypeOptions = getSubTypeOptions(mainType);
-                const currentSubType = item.sub_type || '';
-
-                return `
-                <div class="relative flex items-start gap-3 mb-4 group">
-                    <div class="w-2 h-2 rounded-full bg-green-400 mt-2 flex-shrink-0 shadow-[0_0_10px_rgba(74,222,128,0.5)]"></div>
-                    <div class="flex-1 bg-white/5 border-l-2 border-green-400/30 rounded-r-lg p-3 hover:bg-white/10 transition">
-                        <div class="flex justify-between mb-2">
-                            <input type="text" value="${(item.name || '').replace(/"/g, '&quot;')}" placeholder="Activity Name"
-                                 class="bg-transparent font-semibold text-sm text-white border-b border-transparent focus:border-green-500 outline-none w-3/4"
-                                 oninput="updateItemField(${dayIndex}, ${itemIndex}, 'name', this.value)">
-                            <button onclick="removeItem(${dayIndex}, ${itemIndex})" class="text-gray-500 hover:text-red-400"><i class="fas fa-times"></i></button>
+                    <button type="button" onclick="reorder(${dayIndex}, ${itemIndex}, 1)" class="text-white/20 hover:text-blue-400 transition-colors"><i class="fas fa-chevron-down text-[10px]"></i></button>
+                </div>
+                <div class="flex-1 ${isLoc ? 'bg-blue-500/5 border-blue-500/20' : 'bg-white/5 border-white/10'} border rounded-2xl p-4 transition-all hover:bg-white/10 hover:border-white/20">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                             <label class="text-[8px] text-gray-500 uppercase font-bold block mb-1">Entry Name</label>
+                             <input type="text" value="${item.name || ''}" placeholder="${isLoc ? 'Location Name' : 'Activity Name'}" class="bg-transparent font-bold text-white border-b border-transparent focus:border-blue-500 outline-none w-full text-base" oninput="itineraryData[${dayIndex}].items[${itemIndex}].name = this.value">
                         </div>
-                        <div class="grid grid-cols-12 gap-2">
-                             <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Type</label>
-                                <select class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1"
-                                        onchange="updateItemField(${dayIndex}, ${itemIndex}, 'type', this.value); renderItinerary();">
-                                    <option value="sightseeing" ${mainType == 'sightseeing' ? 'selected' : ''}>Sightseeing</option>
-                                    <option value="travel" ${mainType == 'travel' ? 'selected' : ''}>Travel</option>
-                                    <option value="food" ${mainType == 'food' ? 'selected' : ''}>Food</option>
-                                    <option value="accommodation" ${mainType == 'accommodation' ? 'selected' : ''}>Accommodation</option>
-                                    <option value="adventure" ${mainType == 'adventure' ? 'selected' : ''}>Adventure</option>
-                                    <option value="shopping" ${mainType == 'shopping' ? 'selected' : ''}>Shopping</option>
-                                </select>
-                            </div>
-                            <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Sub-Type</label>
-                                <select class="w-full bg-black/40 border border-white/10 rounded px-2 py-1.5 text-xs text-white"
-                                     onchange="updateItemField(${dayIndex}, ${itemIndex}, 'sub_type', this.value)">
-                                    <option value="">Select Detail</option>
-                                    ${subTypeOptions.map(opt => `<option value="${opt.value}" ${currentSubType == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
-                                </select>
-                            </div>
-                             <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Time (hrs)</label>
-                                <input type="number" value="${item.duration || 1}" min="0.5" step="0.5" 
-                                    class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
-                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'duration', this.value)">
-                            </div>
-                            <div class="col-span-3">
-                                <label class="block text-[9px] uppercase text-gray-500">Cost (₹)</label>
-                                <input type="number" value="${item.cost || ''}" placeholder="0" min="0" 
-                                    class="w-full bg-black/20 border border-white/10 rounded text-xs text-white py-1 pl-1"
-                                    onchange="updateItemField(${dayIndex}, ${itemIndex}, 'cost', this.value)">
-                            </div>
+                        <div class="flex items-center gap-2 ml-4">
+                            <select class="bg-white/5 border border-white/10 text-[10px] text-gray-400 p-2 rounded-xl outline-none" onchange="moveDay(${dayIndex}, ${itemIndex}, this.value)">
+                                <option value="">Move Day</option>
+                                ${Array.from({length: TRIP_DAYS}, (_, i) => `<option value="${i}">Day ${i+1}</option>`).join('')}
+                            </select>
+                            <button type="button" onclick="removeItem(${dayIndex}, ${itemIndex})" class="w-9 h-9 flex items-center justify-center bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-xl transition-all duration-300 group/del">
+                                <i class="fas fa-trash-alt text-sm"></i>
+                            </button>
                         </div>
                     </div>
-                </div>`;
-            }
+                    ${!isLoc ? `
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-1">
+                            <label class="text-[8px] text-gray-500 uppercase font-bold">Category</label>
+                            <select class="w-full bg-black/40 text-[11px] text-white p-2 rounded-xl border border-white/10 outline-none focus:border-blue-500" onchange="itineraryData[${dayIndex}].items[${itemIndex}].type = this.value; updateItemIcon(${dayIndex}, ${itemIndex});">
+                                <option value="sightseeing" ${item.type == 'sightseeing' ? 'selected' : ''}>Sightseeing</option>
+                                <option value="travel" ${item.type == 'travel' ? 'selected' : ''}>Travel</option>
+                                <option value="food" ${item.type == 'food' ? 'selected' : ''}>Food</option>
+                                <option value="accommodation" ${item.type == 'accommodation' ? 'selected' : ''}>Accommodation</option>
+                            </select>
+                        </div>
+                        <div class="space-y-1">
+                            <label class="text-[8px] text-gray-500 uppercase font-bold">Details</label>
+                            <select class="w-full bg-black/40 text-[11px] text-white p-2 rounded-xl border border-white/10 outline-none focus:border-blue-500" onchange="itineraryData[${dayIndex}].items[${itemIndex}].sub_type = this.value; updateItemIcon(${dayIndex}, ${itemIndex});">
+                                ${getSubTypeOptions(item.type || 'sightseeing').map(opt => `<option value="${opt.value}" ${item.sub_type == opt.value ? 'selected' : ''}>${opt.label}</option>`).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                         <div class="space-y-1">
+                            <label class="text-[8px] text-gray-500 uppercase font-bold">Est. Cost</label>
+                            <div class="relative">
+                                <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-xs">₹</span>
+                                <input type="number" value="${item.cost || ''}" placeholder="0" class="w-full bg-black/40 text-xs text-white pl-7 p-2 rounded-xl border border-white/10 outline-none focus:border-green-500" oninput="itineraryData[${dayIndex}].items[${itemIndex}].cost = this.value; calculateTotalCost();">
+                            </div>
+                        </div>
+                    </div>` : `
+                    <div class="flex items-center justify-between mt-1">
+                        <div class="text-[10px] text-blue-400 flex items-center gap-1.5 font-medium">
+                            <i class="fas fa-map-pin"></i> ${item.lat ? `Location Coordinates Synced` : 'Draft Location'}
+                        </div>
+                        <div class="text-[8px] text-white/20 bg-white/5 px-2 py-0.5 rounded-full uppercase tracking-tighter">Routing Point</div>
+                    </div>`}
+                </div>
+            </div>`;
         }).join('');
     }
 
-    // --- UPDATERS ---
-    function updateDayField(dIdx, field, val) {
-        itineraryData[dIdx][field] = val;
+    function reorder(dayIdx, itemIdx, direction) {
+        const newIdx = itemIdx + direction;
+        if (newIdx < 0 || newIdx >= itineraryData[dayIdx].items.length) return;
+        const items = itineraryData[dayIdx].items;
+        [items[itemIdx], items[newIdx]] = [items[newIdx], items[itemIdx]];
+        renderItinerary();
     }
 
-    function updateItemField(dIdx, iIdx, field, val) {
-        itineraryData[dIdx].items[iIdx][field] = val;
-
-        if (field === 'type') {
-            itineraryData[dIdx].items[iIdx].sub_type = ''; // Reset sub type
+    function updateItemIcon(dayIdx, itemIdx) {
+        const item = itineraryData[dayIdx].items[itemIdx];
+        const icon = getActivityIcon(item.item_type === 'location' ? 'location' : item.type, item.sub_type);
+        const itemEl = document.querySelector(`.day-section[data-day-index="${dayIdx}"] .group:nth-of-type(${itemIdx + 1})`);
+        
+        if (itemEl) {
+            const iconEl = itemEl.querySelector('.w-12 i');
+            if (iconEl) iconEl.className = `fas ${icon}`;
+            
+            // Sync Sub-Type dropdown options
+            if (item.item_type !== 'location') {
+                 const selects = itemEl.querySelectorAll('select');
+                 const targetSubTypeSelect = selects[2]; // 0: Move Day, 1: Category, 2: Details
+                 if (targetSubTypeSelect) {
+                    const opts = getSubTypeOptions(item.type);
+                    if (targetSubTypeSelect.options.length !== opts.length || targetSubTypeSelect.options[0].value !== opts[0].value) {
+                        targetSubTypeSelect.innerHTML = opts.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
+                        item.sub_type = opts[0].value;
+                    }
+                 }
+            }
         }
-
-        // Recalculate cost
-        calculateTotalCost();
     }
 
-    function addLocation(dIdx) {
-        itineraryData[dIdx].items.push({
-            item_type: 'location',
-            name: '',
-            destination_id: ''
-        });
+    function moveDay(fromDay, itemIndex, toDay) {
+        if (toDay === "") return;
+        const item = itineraryData[fromDay].items.splice(itemIndex, 1)[0];
+        if (!itineraryData[toDay].items) itineraryData[toDay].items = [];
+        itineraryData[toDay].items.push(item);
         renderItinerary();
     }
 
-    function addActivity(dIdx) {
-        itineraryData[dIdx].items.push({
-            item_type: 'activity',
-            name: '',
-            type: 'sightseeing',
-            sub_type: '',
-            duration: 1,
-            cost: ''
-        });
+    function addItem(dayIdx, type) {
+        itineraryData[dayIdx].items.push(type === 'location' ? { item_type: 'location', name: '', lat: 0, lng: 0 } : { item_type: 'activity', name: '', type: 'sightseeing', cost: '' });
         renderItinerary();
     }
 
-    function removeItem(dIdx, iIdx) {
-        itineraryData[dIdx].items.splice(iIdx, 1);
-        renderItinerary();
-        calculateTotalCost();
-    }
-
-    function handleLocationSelect(dIdx, iIdx, value) {
-        const dest = TRIP_DESTINATIONS.find(d => d.id == value);
-        if (dest) {
-            itineraryData[dIdx].items[iIdx].name = dest.name;
-            itineraryData[dIdx].items[iIdx].destination_id = value;
-        } else {
-            itineraryData[dIdx].items[iIdx].name = '';
-            itineraryData[dIdx].items[iIdx].destination_id = '';
-        }
+    function removeItem(dayIdx, itemIdx) {
+        itineraryData[dayIdx].items.splice(itemIdx, 1);
         renderItinerary();
     }
 
     function calculateTotalCost() {
         let total = 0;
-        if (Array.isArray(itineraryData)) {
-            itineraryData.forEach(day => {
-                if (Array.isArray(day.items)) {
-                    day.items.forEach(item => {
-                        const cost = parseFloat(item.cost);
-                        if (!isNaN(cost) && cost > 0) {
-                            total += cost;
-                        }
-                    });
-                }
-            });
-        }
-        total = Math.round(total);
-        const display = document.getElementById('totalCostDisplay');
-        const input = document.getElementById('estimatedCostInput');
-        if (display) display.innerText = total;
-        if (input) input.value = total;
+        itineraryData.forEach(day => day.items.forEach(item => { if(item.cost) total += parseFloat(item.cost); }));
+        document.getElementById('totalCostDisplay').innerText = Math.round(total);
+        document.getElementById('estimatedCostInput').value = total;
     }
 
-    function setStatus(status) {
-        document.getElementById('statusInput').value = status;
-    }
+    function setStatus(status) { document.getElementById('statusInput').value = status; }
 
     function saveItineraryJSON() {
-        const itineraryInput = document.getElementById('itineraryJson');
-        if (itineraryInput) {
-            itineraryInput.value = JSON.stringify(itineraryData || []);
-        }
-
-        // Final cost calculation to be safe
-        calculateTotalCost();
-
-        // Ensure destination IDs are updated
-        const destInput = document.getElementById('destinationIdsInput');
-        if (destInput && selectedDestinations) {
-            destInput.value = selectedDestinations.map(d => d.id).join(',');
-        }
-
-        return true; // allow form submit
+        document.getElementById('itineraryJson').value = JSON.stringify(itineraryData);
+        return true;
     }
 
-
-    // --- MAIN INITIALIZATION ---
-    // Run
     init();
 </script>
-
 {% endblock %}

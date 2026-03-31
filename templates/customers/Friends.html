@@ -1,0 +1,95 @@
+{% extends 'customers/base.html' %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8">
+    <div class="flex items-center justify-between mb-10">
+        <div>
+            <h1 class="text-3xl font-bold text-white">My Community</h1>
+            <p class="text-gray-400">Connect with fellow travelers</p>
+        </div>
+        <a href="{% url 'customers:search_friends' %}" class="customer-gradient-bg px-6 py-3 rounded-2xl font-bold hover:scale-105 transition shadow-lg flex items-center">
+            <i class="fas fa-search mr-2"></i> Find Friends
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- FRIENDS LIST -->
+        <div class="lg:col-span-2 space-y-6">
+            <div class="customer-glass p-8 rounded-3xl border border-white/10">
+                <h2 class="text-xl font-bold text-white mb-6 flex items-center">
+                    <i class="fas fa-user-friends mr-3 text-blue-400"></i> Friends
+                </h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for f in friends %}
+                    <div class="p-4 rounded-2xl bg-white/5 border border-white/10 flex items-center hover:bg-white/10 transition">
+                        <img src="{% if f.from_user == user %}{% if f.to_user.profile.profile_image %}{{ f.to_user.profile.profile_image.url }}{% else %}/static/default.jpg{% endif %}{% else %}{% if f.from_user.profile.profile_image %}{{ f.from_user.profile.profile_image.url }}{% else %}/static/default.jpg{% endif %}{% endif %}" 
+                             class="w-12 h-12 rounded-full mr-4 object-cover">
+                        <div>
+                            <p class="font-bold text-white">{% if f.from_user == user %}{{ f.to_user.full_name|default:f.to_user.email }}{% else %}{{ f.from_user.full_name|default:f.from_user.email }}{% endif %}</p>
+                            <p class="text-xs text-gray-500">@{% if f.from_user == user %}{{ f.to_user.username }}{% else %}{{ f.from_user.username }}{% endif %}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="col-span-full py-20 text-center">
+                        <i class="fas fa-ghost text-4xl text-white/10 mb-4 block"></i>
+                        <p class="text-gray-400">Your friends list is currently empty.</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- REQUESTS PANEL -->
+        <div class="space-y-6">
+            <!-- INCOMING -->
+            <div class="customer-glass p-6 rounded-3xl border border-white/10">
+                <h3 class="font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-envelope-open-text mr-2 text-yellow-400"></i> Requests
+                </h3>
+                <div class="space-y-3">
+                    {% for req in incoming %}
+                    <div class="p-4 rounded-2xl bg-white/5 border border-white/10">
+                         <div class="flex items-center mb-3">
+                            <img src="{% if req.from_user.profile.profile_image %}{{ req.from_user.profile.profile_image.url }}{% else %}/static/default.jpg{% endif %}" 
+                                 class="w-10 h-10 rounded-full mr-3 object-cover">
+                            <div>
+                                <p class="text-sm font-bold text-white">{{ req.from_user.full_name|default:req.from_user.email }}</p>
+                                <p class="text-[10px] text-gray-400">@{{ req.from_user.username }}</p>
+                            </div>
+                         </div>
+                         <div class="flex gap-2">
+                             <a href="{% url 'customers:accept_friend_request' req.id %}" class="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold text-center hover:bg-green-500/30 transition">Accept</a>
+                             <a href="{% url 'customers:reject_friend_request' req.id %}" class="flex-1 py-2 rounded-lg bg-red-500/20 text-red-400 text-xs font-bold text-center hover:bg-red-500/30 transition">Reject</a>
+                         </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-xs text-gray-500 text-center py-4">No pending requests.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            
+            <!-- SENT -->
+            <div class="customer-glass p-6 rounded-3xl border border-white/10 opacity-60">
+                <h3 class="font-bold text-white mb-4 flex items-center">
+                    <i class="fas fa-paper-plane mr-2 text-blue-400"></i> Sent Requests
+                </h3>
+                <div class="space-y-3">
+                    {% for req in outgoing %}
+                    <div class="flex items-center p-3 rounded-xl bg-white/5">
+                        <img src="{% if req.to_user.profile.profile_image %}{{ req.to_user.profile.profile_image.url }}{% else %}/static/default.jpg{% endif %}" 
+                             class="w-8 h-8 rounded-full mr-3 object-cover">
+                        <div class="overflow-hidden">
+                            <p class="text-xs font-bold text-white truncate">{{ req.to_user.full_name|default:req.to_user.email }}</p>
+                            <p class="text-[10px] text-gray-500">Pending...</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-[10px] text-gray-500 text-center">No outgoing requests.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
