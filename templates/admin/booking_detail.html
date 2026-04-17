@@ -16,17 +16,23 @@
                     <p class="text-sm text-gray-500">Created on {{ booking.created_at|date:"F d, Y H:i" }}</p>
                 </div>
                 <div class="mt-4 md:mt-0 flex space-x-3">
-                    {% if booking.status == 'confirmed' %}
-                    <span
-                        class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Confirmed</span>
-                    {% elif booking.status == 'pending' %}
-                    <span
-                        class="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-semibold">Pending</span>
+                    {% if booking.status == 'pending' %}
+                    <form action="{% url 'adminpanel:booking_approve' booking.pk %}" method="post" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700">Approve</button>
+                    </form>
+                    <form action="{% url 'adminpanel:booking_reject' booking.pk %}" method="post" class="inline">
+                        {% csrf_token %}
+                        <button type="submit" class="px-3 py-1 bg-red-600 text-white rounded-lg text-sm font-semibold hover:bg-red-700">Reject</button>
+                    </form>
+                    {% elif booking.status == 'confirmed' %}
+                    <span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-semibold">Confirmed (Apayment)</span>
+                    {% elif booking.status == 'paid' %}
+                    <span class="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-semibold">Paid</span>
                     {% elif booking.status == 'cancelled' %}
                     <span class="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-semibold">Cancelled</span>
                     {% else %}
-                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">{{
-                        booking.get_status_display }}</span>
+                    <span class="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold">{{ booking.get_status_display }}</span>
                     {% endif %}
                 </div>
             </div>
@@ -61,7 +67,7 @@
 
             <hr class="my-6 border-gray-100">
 
-            <div class="grid grid-cols-2 gap-4">
+            <div class="grid grid-cols-2 gap-4 mt-6">
                 <div>
                     <p class="text-xs text-gray-500 uppercase">Start Date</p>
                     <p class="text-gray-900 font-medium">{{ booking.start_date|date:"M d, Y"|default:"TBD" }}</p>
@@ -70,10 +76,31 @@
                     <p class="text-xs text-gray-500 uppercase">End Date</p>
                     <p class="text-gray-900 font-medium">{{ booking.end_date|date:"M d, Y"|default:"TBD" }}</p>
                 </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Travelers</p>
+                    <p class="text-gray-900 font-medium">{{ booking.travelers_count }}</p>
+                </div>
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Category</p>
+                    <p class="text-gray-900 font-medium capitalize">{{ booking.booking_category }}</p>
+                </div>
             </div>
+
+            {% if booking.notes %}
+            <div class="mt-4 p-4 bg-yellow-50 border-l-4 border-yellow-400 rounded-r-lg">
+                <p class="text-xs font-bold text-yellow-800 uppercase mb-1">Extra Message from Customer</p>
+                <p class="text-gray-700">{{ booking.notes }}</p>
+            </div>
+            {% endif %}
+
             <div class="mt-6 flex justify-between items-center bg-gray-50 p-4 rounded-lg">
-                <span class="font-medium text-gray-700">Total Amount</span>
-                <span class="text-xl font-bold text-gray-900">₹{{ booking.total_amount }}</span>
+                <div>
+                    <span class="font-medium text-gray-700">Total Amount</span>
+                    {% if booking.payment_method == 'emi' %}
+                    <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] rounded-full uppercase">{{ booking.emi_installments }} Months EMI</span>
+                    {% endif %}
+                </div>
+                <span class="text-xl font-bold text-gray-900">₹{{ booking.final_total_amount|default:booking.total_amount }}</span>
             </div>
 
             <div class="mt-6">

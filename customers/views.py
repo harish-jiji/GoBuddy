@@ -8,8 +8,11 @@ from django.utils import timezone
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponseBadRequest
 import json
+import random
+import decimal
+from datetime import timedelta
 
-from core.models import Booking, Package, Message, Destination
+from core.models import Booking, Package, Message, Destination, PaymentTransaction, SavedCard
 from customers.models import TripPlan, UserProfile
 
 
@@ -21,7 +24,8 @@ from django.db.models import Sum, Count
 @login_required(login_url='core:signin')
 def dashboard(request):
     recent_bookings = Booking.objects.filter(user=request.user).order_by('-created_at')[:10]
-    total_spent = recent_bookings.aggregate(total_amount=Sum('total_amount'))['total_amount'] or 0
+    # Use paid_amount for revenue/spent calculation as requested
+    total_spent = Booking.objects.filter(user=request.user).aggregate(total=Sum('paid_amount'))['total'] or 0
 
     upcoming_bookings = Booking.objects.filter(
         user=request.user,
@@ -33,13 +37,16 @@ def dashboard(request):
     popular_destinations = Destination.objects.filter(is_active=True).order_by('-created_at')[:6]
     
     # RECOMMENDED PACKAGES (Filtered by user preference if profile exists)
-    user_style = request.user.profile.travel_style
-    user_acc = request.user.profile.accommodation_preference
+    # Fix: User travel_companions matches package target_audience better
+    user_comp = getattr(request.user.profile, 'travel_companions', None)
     
     recommended_packages = Package.objects.filter(is_active=True)
-    if user_style:
-        recommended_packages = recommended_packages.filter(category=user_style)
-    # If no results based on style, we fallback or combine
+    if user_comp:
+        # Match 'solo' with 'single' for target_audience mapping
+        lookup = 'single' if user_comp == 'solo' else user_comp
+        recommended_packages = recommended_packages.filter(target_audience=lookup)
+    
+    # If no results based on companions, fallback
     if recommended_packages.count() < 3:
         recommended_packages = Package.objects.filter(is_active=True)
         
@@ -388,14 +395,26 @@ def convert_trip(request, trip_id):
     return redirect("customers:bookings")
 
 
+@login_required(login_url='core:signin')
+def cancel_booking(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    if booking.status not in ['pending', 'confirmed']:
+        messages.error(request, "This booking cannot be cancelled in its current state.")
+        return redirect('customers:bookings')
+    
+    if request.method == 'POST':
+        booking.status = 'cancelled'
+        booking.save()
+        messages.success(request, "Booking cancelled successfully.")
+    return redirect('customers:bookings')
+
+
 # ============================================================
 # INBOX
 # ============================================================
 @login_required(login_url='core:signin')
 def inbox(request):
     filter_type = request.GET.get('filter', 'all')
-    
-    # Query all messages for the current user
     all_messages = Message.objects.filter(user=request.user).order_by('-created_at')
     
     # Get total and unread counts for stats cards
@@ -426,6 +445,216 @@ def inbox(request):
         'offers_count': offers_count,
         'system_count': system_count,
     })
+
+@login_required(login_url='core:signin')
+def message_detail(request, message_id):
+    message = get_object_or_404(Message, id=message_id, user=request.user)
+    message.is_read = True
+    message.save()
+    return render(request, 'customers/message_detail.html', {'msg': message})
+
+@login_required(login_url='core:signin')
+def delete_message(request, message_id):
+    message = get_object_or_404(Message, id=message_id, user=request.user)
+    message.delete()
+    messages.success(request, "Message deleted successfully.")
+    return redirect('customers:inbox')
+
+# ============================================================
+# PAYMENT SYSTEM (MOCK)
+# ============================================================
+import random
+from django.utils import timezone
+from datetime import timedelta
+
+@login_required(login_url='core:signin')
+def initiate_payment(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    
+    if booking.status not in ['confirmed', 'paid', 'completed']:
+        messages.warning(request, "This booking is not available for payment.")
+        return redirect('customers:bookings')
+    
+    if booking.payment_status == 'completed':
+        messages.info(request, "This booking is already fully paid.")
+        return redirect('customers:bookings')
+
+    # Calculate EMI installments if any
+    transactions = booking.transactions.all().order_by('-transaction_date')
+    saved_cards = request.user.saved_cards.all()
+    
+    # Estimate next payment amount
+    if booking.payment_method == 'emi' and booking.emi_installments > 0:
+        next_amount = booking.final_total_amount / booking.emi_installments
+    else:
+        next_amount = booking.pending_amount
+
+    return render(request, 'customers/pay_booking.html', {
+        'booking': booking,
+        'transactions': transactions,
+        'saved_cards': saved_cards,
+        'next_amount': next_amount,
+    })
+
+@login_required(login_url='core:signin')
+def send_payment_otp(request, booking_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method'}, status=400)
+    
+    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    
+    # Card handling
+    saved_card_id = request.POST.get('saved_card_id')
+    card_number = ""
+    last_4 = ""
+    
+    if saved_card_id:
+        try:
+            saved_card = SavedCard.objects.get(id=saved_card_id, user=request.user)
+            last_4 = saved_card.last_4
+        except SavedCard.DoesNotExist:
+            return JsonResponse({'success': False, 'message': 'Saved card not found'})
+    else:
+        # Traditional card details validation
+        card_number = request.POST.get('card_number', '').replace(' ', '')
+        expiry_date = request.POST.get('expiry_date', '') 
+        cvv = request.POST.get('cvv', '')
+        
+        if len(card_number) < 13 or len(card_number) > 19:
+            return JsonResponse({'success': False, 'message': 'Invalid Card Number'})
+        
+        last_4 = card_number[-4:]
+
+        if not expiry_date or '/' not in expiry_date:
+            return JsonResponse({'success': False, 'message': 'Invalid Expiry'})
+        
+        if len(cvv) < 3 or len(cvv) > 4:
+            return JsonResponse({'success': False, 'message': 'Invalid CVV'})
+
+    # Amount to be paid in this session
+    payment_choice = request.POST.get('payment_choice') # Only on first pay
+    payment_type = request.POST.get('payment_type', 'installment') # 'installment' or 'full'
+    emi_installments = int(request.POST.get('emi_installments', 2))
+    
+    amount_to_pay = 0.0
+    final_total = float(booking.total_amount)
+    
+    if booking.paid_amount == 0:
+        # Initial choice handling
+        if payment_choice == 'emi':
+            if emi_installments > 2:
+                final_total = float(booking.total_amount) * 1.05
+            amount_to_pay = final_total / emi_installments
+        else:
+            amount_to_pay = final_total
+    else:
+        # Subsequent payment
+        if payment_type == 'full':
+            amount_to_pay = float(booking.pending_amount)
+        else:
+            amount_to_pay = float(booking.final_total_amount / booking.emi_installments)
+    
+    # Store temporary state in session for verification
+    request.session[f'pending_pay_{booking.id}'] = {
+        'amount': amount_to_pay,
+        'final_total': final_total if booking.paid_amount == 0 else float(booking.final_total_amount),
+        'payment_method': 'emi' if (payment_choice == 'emi' or booking.payment_method == 'emi') else 'full',
+        'emi_installments': emi_installments if booking.paid_amount == 0 else booking.emi_installments,
+        'card_last_4': last_4,
+        'save_card': request.POST.get('save_card') == 'on',
+        'card_holder': request.POST.get('card_holder', ''),
+        'expiry': request.POST.get('expiry_date', ''),
+        'card_number': card_number # needed only if saving new
+    }
+
+    # Generate OTP
+    otp = str(random.randint(100000, 999999))
+    booking.otp = otp
+    booking.otp_expiry = timezone.now() + timedelta(minutes=1)
+    booking.save()
+    
+    # Send OTP
+    Message.objects.create(
+        user=request.user,
+        category='payments',
+        subject='Verification OTP',
+        body=f'Your OTP for paying ₹{amount_to_pay:,.2f} on booking {booking.booking_reference} is {otp}. Expires in 1 min.'
+    )
+    
+    return JsonResponse({
+        'success': True, 
+        'message': 'OTP sent. Check inbox.',
+        'amount': amount_to_pay
+    })
+
+@login_required(login_url='core:signin')
+def verify_payment_otp(request, booking_id):
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'Invalid method'}, status=400)
+    
+    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+    otp_input = request.POST.get('otp', '')
+    
+    pay_data = request.session.get(f'pending_pay_{booking.id}')
+    if not pay_data:
+        return JsonResponse({'success': False, 'message': 'Session expired. Try again.'})
+
+    if not booking.otp or not booking.otp_expiry or timezone.now() > booking.otp_expiry:
+        return JsonResponse({'success': False, 'message': 'OTP expired.'})
+    
+    if otp_input == booking.otp:
+        amount = pay_data['amount']
+        
+        # On first payment, set the plan
+        if booking.paid_amount == 0:
+            booking.payment_method = pay_data['payment_method']
+            booking.emi_installments = pay_data['emi_installments']
+            booking.final_total_amount = decimal.Decimal(str(pay_data['final_total']))
+
+        # Create Transaction
+        PaymentTransaction.objects.create(
+            booking=booking,
+            amount=amount,
+            payment_method='Card',
+            card_last_4=pay_data['card_last_4']
+        )
+        
+        # Update Booking
+        booking.paid_amount += decimal.Decimal(str(amount))
+        
+        if booking.pending_amount <= 0:
+            booking.payment_status = 'completed'
+            booking.status = 'paid'
+        else:
+            booking.payment_status = 'partial'
+            booking.status = 'paid' # Keep as paid/active once first payment is done
+            
+        booking.otp = None 
+        booking.save()
+        
+        # Save Card if requested and new
+        if pay_data.get('save_card') and pay_data.get('card_number'):
+            SavedCard.objects.get_or_create(
+                user=request.user,
+                last_4=pay_data['card_last_4'],
+                expiry_date=pay_data['expiry'],
+                defaults={'card_holder': pay_data['card_holder']}
+            )
+        
+        # Clean session
+        del request.session[f'pending_pay_{booking.id}']
+
+        # Success Message
+        Message.objects.create(
+            user=request.user,
+            category='payments',
+            subject='Payment Successful',
+            body=f'Your payment for booking {booking.booking_reference} has been completed successfully! Debited rs {amount:,.2f}.'
+        )
+        
+        return JsonResponse({'success': True, 'message': f'Success! ₹{amount:,.2f} debited.'})
+    else:
+        return JsonResponse({'success': False, 'message': 'Invalid OTP.'})
 
 
 # ============================================================
@@ -628,9 +857,22 @@ def my_trips(request):
     if status_filter != 'all':
         qs = qs.filter(status=status_filter)
     
+    # RECOMMENDED PACKAGES (Filtered by user preference if profile exists)
+    user_comp = getattr(request.user.profile, 'travel_companions', None)
+    recommended_packages = Package.objects.filter(is_active=True)
+    if user_comp:
+        lookup = 'single' if user_comp == 'solo' else user_comp
+        recommended_packages = recommended_packages.filter(target_audience=lookup)
+    
+    if recommended_packages.count() < 3:
+        recommended_packages = Package.objects.filter(is_active=True)
+        
+    recommended_packages = recommended_packages.order_by('-created_at')[:3]
+
     return render(request, 'customers/my_trips.html', {
         'trip_plans': qs,
         'status_filter': status_filter,
+        'recommended_packages': recommended_packages,
     })
 
 
@@ -810,8 +1052,8 @@ def browse_packages(request):
     
     # Get customer's converted packages
     my_converted = Package.objects.filter(
-        tripplan__user=request.user,
-        tripplan__converted_to_package__isnull=False
+        source_trip_plan__user=request.user,
+        source_trip_plan__isnull=False
     ).distinct()
     
     return render(request, 'customers/packages.html', {
@@ -852,9 +1094,16 @@ def book_package(request, package_id):
         
         start_date_str = request.POST.get('start_date')
         travelers = int(request.POST.get('travelers', 1))
+        category = request.POST.get('category', 'standard')
+        notes = request.POST.get('notes', '')
         
         if start_date_str:
-            start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            try:
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            except ValueError:
+                messages.error(request, 'Invalid date format.')
+                return redirect('customers:package_detail', package_id)
+
             end_date = start_date + timedelta(days=package.duration_days - 1)
             
             # Calculate total amount
@@ -867,14 +1116,17 @@ def book_package(request, package_id):
                 start_date=start_date,
                 end_date=end_date,
                 travelers_count=travelers,
+                booking_category=category,
+                notes=notes,
                 total_amount=total_amount,
+                final_total_amount=total_amount,
                 status='pending',
                 payment_status='pending'
             )
             
             messages.success(
                 request,
-                f'Package booked successfully! Booking reference: {booking.booking_reference}'
+                f'Booking request sent! Once admin confirms, you can proceed to payment. Ref: {booking.booking_reference}'
             )
             return redirect('customers:bookings')
         else:
@@ -882,3 +1134,22 @@ def book_package(request, package_id):
             return redirect('customers:package_detail', package_id)
     
     return redirect('customers:package_detail', package_id)
+
+
+@login_required(login_url='core:signin')
+def payments_list(request):
+    """View to list all payments and transaction history"""
+    bookings_with_payments = Booking.objects.filter(
+        user=request.user,
+        status__in=['confirmed', 'paid', 'completed']
+    ).order_by('-created_at')
+    
+    # Also get all transactions for a global history view
+    transactions = PaymentTransaction.objects.filter(
+        booking__user=request.user
+    ).order_by('-transaction_date')
+
+    return render(request, 'customers/Payments.html', {
+        'bookings': bookings_with_payments,
+        'transactions': transactions,
+    })

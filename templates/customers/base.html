@@ -168,9 +168,19 @@
           <i class="fas fa-calendar-check"></i> <span>My Bookings</span>
         </a>
 
+        <a href="{% url 'customers:payments_list' %}"
+          class="sidebar-link block px-4 py-3 rounded-xl flex items-center space-x-3">
+          <i class="fas fa-credit-card"></i> <span>Payments</span>
+        </a>
+
         <a href="{% url 'customers:my_trips' %}"
           class="sidebar-link block px-4 py-3 rounded-xl flex items-center space-x-3">
           <i class="fas fa-suitcase-rolling"></i> <span>My Trips</span>
+        </a>
+
+        <a href="{% url 'customers:browse_packages' %}"
+          class="sidebar-link block px-4 py-3 rounded-xl flex items-center space-x-3">
+          <i class="fas fa-box-open"></i> <span>Explore Packages</span>
         </a>
 
         <a href="{% url 'customers:plan_trips' %}"

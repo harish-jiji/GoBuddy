@@ -10,6 +10,7 @@ urlpatterns = [
 
     # Bookings
     path('bookings/', views.bookings_view, name='bookings'),
+    path('booking/<int:booking_id>/cancel/', views.cancel_booking, name='cancel_booking'),
 
     # Destinations
     path('destinations/', views.destinations_list, name='destinations_list'),
@@ -27,8 +28,9 @@ urlpatterns = [
 
     # Inbox
     path('inbox/', views.inbox, name='inbox'),
+    path('inbox/message/<int:message_id>/', views.message_detail, name='message_detail'),
+    path('inbox/message/<int:message_id>/delete/', views.delete_message, name='delete_message'),
 
-    # Profile
     # Profile & Settings
     path('profile/', views.profile, name='profile'),
     path('profile/security/', views.security_settings, name='security_settings'),
@@ -53,4 +55,10 @@ urlpatterns = [
     path('packages/', views.browse_packages, name='browse_packages'),
     path('package/<int:package_id>/', views.package_detail_view, name='package_detail'),
     path('package/<int:package_id>/book/', views.book_package, name='book_package'),
+    
+    # Payment Flow
+    path('booking/<int:booking_id>/pay/', views.initiate_payment, name='initiate_payment'),
+    path('booking/<int:booking_id>/pay/send-otp/', views.send_payment_otp, name='send_payment_otp'),
+    path('booking/<int:booking_id>/pay/verify-otp/', views.verify_payment_otp, name='verify_payment_otp'),
+    path('payments/', views.payments_list, name='payments_list'),
 ]

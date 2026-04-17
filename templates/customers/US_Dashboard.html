@@ -138,7 +138,7 @@
 <div class="glass mb-6 border border-blue-500/20">
   <div style="display:flex;justify-content:space-between;">
     <h2 class="title">Recommended Packages</h2>
-    <a href="{% url 'core:packages' %}" class="small">View All</a>
+    <a href="{% url 'customers:browse_packages' %}" class="small">View All</a>
   </div>
 
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1rem;margin-top:1rem">
@@ -147,7 +147,7 @@
       <div class="title">{{ pkg.name }}</div>
       <p class="small">{{ pkg.duration_days }} days</p>
       <p class="small">₹{{ pkg.total_cost|floatformat:0 }}</p>
-      <a href="{% url 'core:package_detail' pkg.id %}" class="btn"
+      <a href="{% url 'customers:package_detail' pkg.id %}" class="btn"
         style="margin-top:.5rem;display:inline-block">View</a>
     </div>
     {% empty %}
@@ -185,8 +185,11 @@
       <div class="title">
         {% if b.package %} {{ b.package.name }} {% else %} Booking {{ b.id }} {% endif %}
       </div>
-      <p class="small">{{ b.booking_date|date:"M d, Y" }}</p>
-      <p class="small">Paid: ₹{{ b.total_amount|floatformat:0 }}</p>
+      <p class="small">{{ b.created_at|date:"M d, Y" }}</p>
+      <p class="small">Paid: ₹{{ b.paid_amount|floatformat:0 }}</p>
+      {% if b.package %}
+      <a href="{% url 'customers:package_detail' b.package.id %}" class="small text-blue-400">View Package</a>
+      {% endif %}
     </div>
     {% empty %}
     <p class="small">No recent bookings.</p>

@@ -10,9 +10,14 @@
 </style>
 
 <!-- HEADER -->
-<div class="glass mb-6">
-  <h1 class="title">My Bookings</h1>
-  <p class="small">Track and manage all your travel bookings.</p>
+<div class="glass mb-6 flex justify-between items-center">
+  <div>
+    <h1 class="title">My Bookings</h1>
+    <p class="small">Track and manage all your travel bookings.</p>
+  </div>
+  <a href="{% url 'customers:browse_packages' %}" class="bg-indigo-600 px-6 py-3 rounded-xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20">
+    <i class="fas fa-search mr-2"></i> Explore Packages
+  </a>
 </div>
 
 <!-- QUICK STATS -->
@@ -64,38 +69,62 @@
     <div class="flex flex-col md:flex-row justify-between">
       
       <!-- Left Section -->
-      <div>
-        <h2 class="font-bold text-xl mb-2">
-          {% if b.package %} {{ b.package.name }} {% else %}Booking #{{ b.id }}{% endif %}
-        </h2>
+      <div class="flex-1">
+        <div class="flex items-center gap-3 mb-2">
+            <h2 class="font-bold text-xl">
+              {% if b.package %} {{ b.package.name }} {% else %}Booking #{{ b.id }}{% endif %}
+            </h2>
+            <span class="px-3 py-1 bg-white/5 rounded-full text-[10px] uppercase tracking-tighter text-blue-400 border border-blue-400/20">
+                {{ b.get_booking_category_display }}
+            </span>
+        </div>
 
-        <p class="small">
-          <i class="fas fa-calendar"></i>
-          {{ b.start_date|date:"M d, Y" }} → {{ b.end_date|date:"M d, Y" }}
-        </p>
-
-        <p class="small">
-          <i class="fas fa-rupee-sign"></i>
-          Paid: ₹{{ b.total_amount|floatformat:0 }}
-        </p>
-
-        <p class="small mt-1">
-          <i class="fas fa-info-circle"></i>
-          Status: <strong>{{ b.get_status_display }}</strong>
-        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+            <p class="small">
+              <i class="fas fa-calendar mr-2"></i>
+              {{ b.start_date|date:"M d, Y" }} → {{ b.end_date|date:"M d, Y" }}
+            </p>
+            <p class="small">
+              <i class="fas fa-users mr-2"></i>
+              {{ b.travelers_count }} Traveler(s)
+            </p>
+            <p class="small">
+              <i class="fas fa-rupee-sign mr-2"></i>
+              {% if b.status == 'paid' %}Paid:{% else %}Total:{% endif %} <span class="text-white font-bold">₹{{ b.final_total_amount|floatformat:0 }}</span>
+            </p>
+            <p class="small">
+              <i class="fas fa-info-circle mr-2"></i>
+              Status: <span class="{% if b.status == 'confirmed' %}text-green-400{% elif b.status == 'pending' %}text-yellow-400{% else %}text-white{% endif %} font-semibold">{{ b.get_status_display }}</span>
+            </p>
+        </div>
+        
+        {% if b.notes %}
+        <div class="mt-3 p-3 bg-white/5 rounded-lg border-l-4 border-blue-500/50">
+            <p class="text-xs text-gray-400 italic">"{{ b.notes|truncatechars:100 }}"</p>
+        </div>
+        {% endif %}
       </div>
 
       <!-- Right Buttons -->
       <div class="flex flex-col items-end gap-2 mt-4 md:mt-0">
 
-        <a href="#" class="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 text-sm">
-          <i class="fas fa-eye mr-2"></i> View
+        {% if b.status == 'confirmed' %}
+        <a href="{% url 'customers:initiate_payment' b.id %}" class="px-6 py-2 bg-green-600 rounded-lg text-white font-bold hover:bg-green-500 shadow-lg shadow-green-600/20 transition-all text-sm animate-pulse">
+          <i class="fas fa-credit-card mr-2"></i> Pay Now
+        </a>
+        {% endif %}
+
+        <a href="#" class="px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 text-sm w-full text-center">
+          <i class="fas fa-eye mr-2"></i> Details
         </a>
 
-        {% if b.status == 'upcoming' %}
-        <a href="#" class="px-4 py-2 bg-red-600 rounded-lg text-white text-sm hover:bg-red-700">
-          <i class="fas fa-times mr-1"></i> Cancel
-        </a>
+        {% if b.status == 'pending' or b.status == 'confirmed' %}
+        <form action="{% url 'customers:cancel_booking' b.id %}" method="POST" class="w-full" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+          {% csrf_token %}
+          <button type="submit" class="px-4 py-2 bg-red-600/10 text-red-400 rounded-lg hover:bg-red-600 hover:text-white text-sm w-full text-center transition-all">
+            <i class="fas fa-times mr-1"></i> Cancel
+          </button>
+        </form>
         {% endif %}
 
       </div>
@@ -105,13 +134,18 @@
   {% empty %}
 
   <!-- Empty State -->
-  <div class="glass text-center p-10">
-    <div class="text-5xl mb-4">📭</div>
-    <h3 class="text-xl font-bold">No bookings found</h3>
-    <p class="small">You have not created any bookings yet.</p>
-    <a href="{% url 'customers:plan_trips' %}" class="mt-4 inline-block bg-indigo-600 px-6 py-3 rounded-lg">
-      Create Booking
-    </a>
+  <div class="glass text-center p-12 py-20">
+    <div class="text-7xl mb-6">🏜️</div>
+    <h3 class="text-2xl font-bold mb-2">Adventure Awaits!</h3>
+    <p class="small mb-8">You don't have any bookings yet. Start planning your dream vacation today.</p>
+    <div class="flex justify-center gap-4">
+      <a href="{% url 'customers:browse_packages' %}" class="bg-indigo-600 px-8 py-3 rounded-xl font-bold shadow-xl shadow-indigo-600/20 hover:scale-105 transition-all">
+        Browse Packages
+      </a>
+      <a href="{% url 'customers:plan_trips' %}" class="bg-white/10 px-8 py-3 rounded-xl font-bold hover:bg-white/20 transition-all">
+        Create Custom Trip
+      </a>
+    </div>
   </div>
 
   {% endfor %}

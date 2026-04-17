@@ -28,6 +28,8 @@ urlpatterns = [
     # bookings
     path('bookings/', views.BookingListView.as_view(), name='bookings'),
     path('bookings/<int:pk>/', views.BookingDetailView.as_view(), name='booking_detail'),
+    path('bookings/<int:pk>/approve/', views.booking_approve, name='booking_approve'),
+    path('bookings/<int:pk>/reject/', views.booking_reject, name='booking_reject'),
     path('bookings/export/csv/', views.export_bookings_csv, name='export_bookings_csv'),
 
     # users

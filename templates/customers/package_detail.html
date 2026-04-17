@@ -145,45 +145,90 @@
             <i class="fas fa-calendar-check text-green-400 mr-2"></i>Book This Package
         </h3>
 
-        <form method="POST" action="{% url 'customers:book_package' package.id %}">
+        <form method="POST" action="{% url 'customers:book_package' package.id %}" id="bookingForm">
             {% csrf_token %}
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                    <label class="block text-sm font-medium mb-2">Travel Start Date *</label>
-                    <input type="date" name="start_date" required min="{{ today|date:'Y-m-d' }}"
-                        class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
-
-                <div>
-                    <label class="block text-sm font-medium mb-2">Number of Travelers *</label>
-                    <input type="number" name="travelers" min="1" max="20" value="1" required
-                        class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                </div>
+            <!-- Step 1: Just Proceed Button -->
+            <div id="step1" class="flex flex-col items-center justify-center py-8">
+                <p class="text-gray-400 mb-6 text-center max-w-md">Ready to start your adventure? Click below to select your travel details and request local admin approval.</p>
+                <button type="button" onclick="showFields()"
+                   class="gradient px-12 py-4 rounded-2xl font-bold shadow-xl hover:scale-105 transition-all flex items-center space-x-3">
+                   <i class="fas fa-book-open"></i>
+                   <span>Proceed to Book</span>
+                </button>
             </div>
 
-            <div class="bg-blue-500/20 border border-blue-500 rounded-lg p-4 mb-6">
-                <div class="flex items-start">
-                    <i class="fas fa-info-circle text-blue-400 mr-3 mt-1"></i>
-                    <div class="text-sm text-gray-300">
-                        <strong>Note:</strong> The package cost shown is per person. Your total booking amount will be
-                        calculated based on the number of travelers. Final payment will be processed after confirmation.
+            <!-- Step 2: Hidden Fields -->
+            <div id="bookingFields" class="hidden animate-slide-in">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Travel Start Date *</label>
+                        <input type="date" name="start_date" required min="{{ today|date:'Y-m-d' }}"
+                            class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Number of Travelers *</label>
+                        <input type="number" name="travelers" min="1" max="20" value="1" required
+                            class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Select Category *</label>
+                        <select name="category" required
+                            class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                            <option value="standard">Standard Plan</option>
+                            <option value="deluxe">Deluxe Plan</option>
+                            <option value="luxury">Luxury Plan</option>
+                            <option value="premium">Premium Plan</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-2 text-gray-300">Extra Message / Customization</label>
+                        <textarea name="notes" placeholder="Any extra requirements or information for the admin..."
+                            class="w-full px-4 py-3 rounded-lg glass text-white border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all h-[52px]"></textarea>
                     </div>
                 </div>
-            </div>
 
-            <div class="flex gap-4">
-                <a href="{% url 'customers:browse_packages' %}"
-                    class="flex-1 text-center px-6 py-3 glass hover:bg-white/10 rounded-lg transition">
-                    <i class="fas fa-arrow-left mr-2"></i>Back to Packages
-                </a>
-                <button type="submit"
-                    class="flex-1 gradient px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition">
-                    <i class="fas fa-ticket-alt mr-2"></i>Proceed to Booking
-                </button>
+                <div class="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-8">
+                    <div class="flex items-start">
+                        <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center mr-4 shrink-0">
+                            <i class="fas fa-info-circle text-blue-400"></i>
+                        </div>
+                        <div class="text-sm text-gray-300 leading-relaxed">
+                            <strong class="text-white block mb-1">Approval Workflow:</strong>
+                            Your request will be sent for Verification. Once approved, you can complete payment via **Card** or **EMI** options.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex gap-4">
+                    <button type="button" onclick="hideFields()"
+                        class="flex-1 text-center px-6 py-3 glass hover:bg-white/10 rounded-lg transition">
+                        <i class="fas fa-arrow-left mr-2"></i>Cancel
+                    </button>
+                    <button type="submit"
+                        class="flex-1 gradient px-6 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition">
+                        <i class="fas fa-paper-plane mr-2"></i>Send Request
+                    </button>
+                </div>
             </div>
         </form>
     </div>
+
+</div>
+
+<script>
+function showFields() {
+    document.getElementById('step1').classList.add('hidden');
+    document.getElementById('bookingFields').classList.remove('hidden');
+}
+function hideFields() {
+    document.getElementById('step1').classList.remove('hidden');
+    document.getElementById('bookingFields').classList.add('hidden');
+}
+</script>
 
 </div>
 

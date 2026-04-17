@@ -311,10 +311,30 @@ class Package(models.Model):
 # ======================================================
 class Booking(models.Model):
     BOOKING_STATUS = [
-        ('pending', 'Pending'),
-        ('confirmed', 'Confirmed'),
+        ('pending', 'Pending Approval'),
+        ('confirmed', 'Confirmed (Awaiting Payment)'),
+        ('paid', 'Paid'),
         ('cancelled', 'Cancelled'),
         ('completed', 'Completed'),
+    ]
+
+    PAYMENT_STATUS = [
+        ('pending', 'Pending'),
+        ('partial', 'Partially Paid'),
+        ('completed', 'Completed'),
+        ('failed', 'Failed'),
+    ]
+
+    PAYMENT_METHOD = [
+        ('full', 'Full Payment'),
+        ('emi', 'EMI Option'),
+    ]
+
+    BOOKING_CATEGORY = [
+        ('standard', 'Standard'),
+        ('deluxe', 'Deluxe'),
+        ('luxury', 'Luxury'),
+        ('premium', 'Premium'),
     ]
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='bookings')
@@ -324,10 +344,27 @@ class Booking(models.Model):
     booking_date = models.DateTimeField(auto_now_add=True)
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
-
+    
+    # New Fields
+    travelers_count = models.PositiveIntegerField(default=1)
+    booking_category = models.CharField(max_length=20, choices=BOOKING_CATEGORY, default='standard')
+    
     status = models.CharField(max_length=30, choices=BOOKING_STATUS, default='pending')
-    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
-    notes = models.TextField(blank=True, null=True)
+    
+    # Payment Details
+    payment_status = models.CharField(max_length=20, choices=PAYMENT_STATUS, default='pending')
+    payment_method = models.CharField(max_length=10, choices=PAYMENT_METHOD, blank=True, null=True)
+    emi_installments = models.PositiveIntegerField(default=0, help_text="Number of EMI installments")
+    
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Original package cost")
+    final_total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Total after EMI interest if applicable")
+    paid_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0, help_text="Actual amount paid by customer")
+    
+    # OTP for Mock Payment
+    otp = models.CharField(max_length=6, blank=True, null=True)
+    otp_expiry = models.DateTimeField(blank=True, null=True)
+
+    notes = models.TextField(blank=True, null=True, help_text="Extra message from user")
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -337,8 +374,42 @@ class Booking(models.Model):
             self.booking_reference = f"GB-{uuid.uuid4().hex[:10].upper()}"
         super().save(*args, **kwargs)
 
+    @property
+    def pending_amount(self):
+        return self.final_total_amount - self.paid_amount
+
     def __str__(self):
         return f"{self.booking_reference} - {self.user.email}"
+
+
+class PaymentTransaction(models.Model):
+    booking = models.ForeignKey(Booking, on_delete=models.CASCADE, related_name='transactions')
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    transaction_date = models.DateTimeField(auto_now_add=True)
+    payment_method = models.CharField(max_length=20)
+    card_last_4 = models.CharField(max_length=4, blank=True, null=True)
+    reference_id = models.CharField(max_length=100, unique=True, blank=True)
+
+    def save(self, *args, **kwargs):
+        if not self.reference_id:
+            self.reference_id = f"TRX-{uuid.uuid4().hex[:12].upper()}"
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.reference_id} - {self.amount}"
+
+
+class SavedCard(models.Model):
+    user = models.ForeignKey(GoUser, on_delete=models.CASCADE, related_name='saved_cards')
+    card_holder = models.CharField(max_length=150)
+    last_4 = models.CharField(max_length=4)
+    expiry_date = models.CharField(max_length=5) # MM/YY
+    card_type = models.CharField(max_length=20, default='Visa') # Mock
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"**** **** **** {self.last_4}"
 
 
 class BookingTraveler(models.Model):

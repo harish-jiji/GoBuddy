@@ -434,6 +434,48 @@ class BookingDetailView(DetailView):
 
 
 @staff_and_group_required
+def booking_approve(request, pk):
+    """Confirm a booking and allow user to pay"""
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method == 'POST':
+        booking.status = 'confirmed'
+        booking.save()
+        
+        # Notify user
+        Message.objects.create(
+            user=booking.user,
+            category='bookings',
+            subject='Booking Confirmed - Payment Required',
+            body=f'Your booking for {booking.package.name if booking.package else "Trip"} has been confirmed by our team. Please proceed to the payment page to complete your booking. Ref: {booking.booking_reference}'
+        )
+        
+        messages.success(request, f"Booking {booking.booking_reference} confirmed!")
+        return redirect('adminpanel:booking_detail', pk=pk)
+    return redirect('adminpanel:booking_detail', pk=pk)
+
+
+@staff_and_group_required
+def booking_reject(request, pk):
+    """Cancel/Reject a booking"""
+    booking = get_object_or_404(Booking, pk=pk)
+    if request.method == 'POST':
+        booking.status = 'cancelled'
+        booking.save()
+        
+        # Notify user
+        Message.objects.create(
+            user=booking.user,
+            category='bookings',
+            subject='Booking Request Cancelled',
+            body=f'We regret to inform you that your booking for {booking.package.name if booking.package else "Trip"} could not be confirmed at this time and has been cancelled. Ref: {booking.booking_reference}'
+        )
+        
+        messages.info(request, f"Booking {booking.booking_reference} cancelled.")
+        return redirect('adminpanel:booking_detail', pk=pk)
+    return redirect('adminpanel:booking_detail', pk=pk)
+
+
+@staff_and_group_required
 def export_bookings_csv(request):
     qs = Booking.objects.select_related('user', 'package').order_by('-created_at')
     

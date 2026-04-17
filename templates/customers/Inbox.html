@@ -87,31 +87,50 @@
     <div id="messagesContainer" class="space-y-4">
 
         {% for m in user_messages %}
-        <div class="glass p-6 rounded-xl hover-lift message-card"
+        <div class="glass rounded-xl hover-lift message-card relative group"
              data-text="{{ m.subject }} {{ m.body }} {{ m.get_category_display }}">
             
-            <div class="flex items-start space-x-4">
+            <div class="flex items-center space-x-4 p-6">
                 
-                <!-- Icon -->
-                <div class="w-12 h-12 flex items-center justify-center rounded-xl bg-white/10">
-                    <i class="fas fa-envelope text-blue-400 text-xl"></i>
+                <!-- Link to detail -->
+                <a href="{% url 'customers:message_detail' m.id %}" class="flex flex-1 items-start space-x-4">
+                    <!-- Icon -->
+                    <div class="w-12 h-12 flex items-center justify-center rounded-xl {% if not m.is_read %} bg-blue-500/20 {% else %} bg-white/5 {% endif %} shrink-0 transition-all">
+                        <i class="fas {% if m.category == 'payments' %}fa-credit-card{% elif m.category == 'bookings' %}fa-calendar-check{% else %}fa-envelope{% endif %} {% if not m.is_read %} text-blue-400 {% else %} text-gray-400 {% endif %} text-xl"></i>
+                    </div>
+
+                    <!-- Message content -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h3 class="text-lg font-semibold truncate {% if not m.is_read %} text-white {% else %} text-gray-400 {% endif %}">
+                                {{ m.subject }}
+                            </h3>
+                            {% if not m.is_read %}
+                            <span class="w-2 h-2 rounded-full bg-blue-500"></span>
+                            {% endif %}
+                        </div>
+                        <p class="text-gray-400 text-sm line-clamp-1 mb-2">{{ m.body }}</p>
+                        <p class="text-gray-500 text-[10px] uppercase tracking-widest flex items-center gap-2">
+                             {{ m.created_at|date:"M d • H:i" }}
+                            <span class="w-1 h-1 rounded-full bg-gray-600"></span>
+                            {{ m.get_category_display }}
+                        </p>
+                    </div>
+                </a>
+
+                <!-- Actions (Delete) -->
+                <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                    <form action="{% url 'customers:delete_message' m.id %}" method="POST" onsubmit="return confirm('Delete this message?')">
+                        {% csrf_token %}
+                        <button type="submit" class="w-10 h-10 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white flex items-center justify-center transition-all">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </form>
                 </div>
 
-                <!-- Message content -->
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold {% if not m.is_read %} text-white {% endif %}">
-                        {{ m.subject }}
-                    </h3>
-                    <p class="text-gray-300 mb-2">{{ m.body }}</p>
-                    <p class="text-gray-500 text-sm">
-                        <i class="fas fa-clock"></i> {{ m.created_at|date:"M d, Y H:i" }}
-                        • <span class="px-2 py-1 bg-white/10 rounded-full text-xs">{{ m.get_category_display }}</span>
-                    </p>
-                </div>
-
-                <!-- Status -->
+                <!-- Unread status mobile -->
                 {% if not m.is_read %}
-                <span class="px-3 py-1 bg-blue-600 text-sm rounded-lg">Unread</span>
+                <div class="md:hidden w-3 h-3 rounded-full bg-blue-600"></div>
                 {% endif %}
             </div>
 

@@ -1,0 +1,50 @@
+{% extends 'customers/base.html' %}
+{% block content %}
+
+<div class="max-w-3xl mx-auto py-10 px-4">
+    <div class="glass-container p-8 rounded-3xl backdrop-blur-xl border border-white/10 shadow-2xl animate-fade-in" style="background: rgba(255,255,255,0.03);">
+        <!-- Message Header -->
+        <div class="flex items-center justify-between mb-8 border-b border-white/5 pb-6">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center {% if msg.category == 'payments' %}bg-green-500/20 text-green-400{% elif msg.category == 'bookings' %}bg-blue-500/20 text-blue-400{% else %}bg-purple-500/20 text-purple-400{% endif %}">
+                    <i class="fas {% if msg.category == 'payments' %}fa-credit-card{% elif msg.category == 'bookings' %}fa-calendar-check{% else %}fa-bell{% endif %} text-2xl"></i>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-white mb-1">{{ msg.subject }}</h2>
+                    <p class="text-xs text-gray-500 uppercase tracking-widest">{{ msg.created_at|date:"M d, Y • H:i" }}</p>
+                </div>
+            </div>
+            <a href="{% url 'customers:inbox' %}" class="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-white/10 hover:text-white transition-all">
+                <i class="fas fa-times"></i>
+            </a>
+        </div>
+
+        <!-- Message Body -->
+        <div class="space-y-6">
+            <div class="bg-white/5 p-6 rounded-2xl min-h-[150px]">
+                <p class="text-gray-300 leading-relaxed whitespace-pre-line">{{ msg.body }}</p>
+            </div>
+
+            <!-- Contextual Actions -->
+            <div class="flex gap-4">
+                {% if 'OTP' in msg.body %}
+                <button onclick="window.close();" class="flex-1 py-4 bg-blue-600 rounded-xl font-bold text-white hover:bg-blue-500 transition-all shadow-lg shadow-blue-600/20">
+                    Done (Go Back to Payment)
+                </button>
+                {% endif %}
+                <form action="{% url 'customers:delete_message' msg.id %}" method="POST" class="{% if 'OTP' in msg.body %}flex-[0.5]{% else %}flex-1{% endif %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full py-4 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl font-bold hover:bg-red-500 hover:text-white transition-all">
+                        <i class="fas fa-trash-alt mr-2"></i>Delete Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="mt-8 text-center text-gray-500 text-sm">
+        <p>This message is intended for {{ request.user.full_name|default:request.user.email }}</p>
+    </div>
+</div>
+
+{% endblock %}
